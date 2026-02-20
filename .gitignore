@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Data (too large for git)
+data/raw/wikipedia/*.json
+data/raw/arxiv/*.json
+data/raw/synthetic/*.json
+data/processed/*.json
+data/cache/
+
+# Vector databases
+vector_db/*/index.faiss
+vector_db/*/index.pkl
+
+# Experiment outputs
+experiments/*/logs/
+experiments/*/temp/
+experiments/*/*.json
+experiments/figures/*.png
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large files
+*.faiss
+*.pkl
+*.bin
+*.pt
+
+# But keep directory structure
+!.gitkeep
