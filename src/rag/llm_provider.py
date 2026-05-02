@@ -160,6 +160,71 @@ class HuggingFaceInferenceLLM(LLM):
     def _llm_type(self) -> str:
         return "huggingface_inference"
 
+class GeminiLLM(LLM):
+    api_key: str
+    model: str = "gemini-3-flash-preview"
+    temperature: float = 0.2
+    top_p: float = 0.9
+    top_k: Optional[int] = None
+    max_output_tokens: int = 1024
+    _client = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def _get_client(self):
+        if self._client is None:
+            try:
+                from google import genai
+            except ImportError as exc:
+                raise RuntimeError(
+                    "google-genai is required for GeminiLLM. Install it with `pip install google-genai`."
+                ) from exc
+            self._client = genai.Client(api_key=self.api_key)
+        return self._client
+
+    def _build_generation_config(self) -> dict:
+        config = {
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "max_output_tokens": self.max_output_tokens,
+        }
+        if self.top_k is not None:
+            config["top_k"] = self.top_k
+        return config
+
+    def _call(self, prompt: str, stop=None, run_manager=None, **kwargs) -> str:
+        client = self._get_client()
+        try:
+            response = client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(f"Gemini request failed: {exc}") from exc
+
+        text = getattr(response, "text", None)
+        if text:
+            return str(text).strip()
+
+        candidates = getattr(response, "candidates", None)
+        if candidates:
+            parts = []
+            for candidate in candidates:
+                content = getattr(candidate, "content", None)
+                if content and getattr(content, "parts", None):
+                    for part in content.parts:
+                        piece = getattr(part, "text", "")
+                        if piece:
+                            parts.append(piece)
+            if parts:
+                return "".join(parts).strip()
+
+        raise RuntimeError(f"Gemini returned empty response: {response}")
+
+    @property
+    def _llm_type(self) -> str:
+        return "gemini"
 
 def build_openrouter_llm() -> OpenRouterLLM:
     load_dotenv()
@@ -201,34 +266,24 @@ def build_huggingface_llm() -> HuggingFaceInferenceLLM:
     )
 
 
-def build_local_t5_llm():
-    from transformers import T5ForConditionalGeneration, T5Tokenizer
+def build_gemini_llm() -> GeminiLLM:
+    load_dotenv()
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise ValueError("Missing GEMINI_API_KEY. Add it to .env or export it in your shell.")
 
-    class T5LLM(LLM):
-        model: T5ForConditionalGeneration = None
-        tokenizer: T5Tokenizer = None
-        max_new_tokens: int = 200
+    top_k_raw = os.getenv("GEMINI_TOP_K")
+    top_k = int(top_k_raw) if top_k_raw not in {None, ""} else None
 
-        class Config:
-            arbitrary_types_allowed = True
+    return GeminiLLM(
+        api_key=api_key,
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview").strip(),
+        temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.2")),
+        top_p=float(os.getenv("GEMINI_TOP_P", "0.9")),
+        top_k=top_k,
+        max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "1024")),
+    )
 
-        def _call(self, prompt: str, stop=None, run_manager=None, **kwargs) -> str:
-            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                do_sample=False,
-            )
-            return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-        @property
-        def _llm_type(self) -> str:
-            return "t5"
-
-    model_name = os.getenv("LOCAL_T5_MODEL", "google/flan-t5-small")
-    tokenizer = T5Tokenizer.from_pretrained(model_name)
-    model = T5ForConditionalGeneration.from_pretrained(model_name)
-    return T5LLM(model=model, tokenizer=tokenizer, max_new_tokens=200)
 
 
 def get_llm(provider: Optional[str] = None) -> LLM:
@@ -238,8 +293,8 @@ def get_llm(provider: Optional[str] = None) -> LLM:
         return build_openrouter_llm()
     if selected in {"hf", "huggingface", "huggingface_inference"}:
         return build_huggingface_llm()
-    if selected in {"local", "local_t5", "t5"}:
-        return build_local_t5_llm()
+    if selected in {"gemini", "google", "google_gemini"}:
+        return build_gemini_llm()
     raise ValueError(
-        f"Unsupported LLM_PROVIDER '{selected}'. Use 'openrouter', 'huggingface', or 'local_t5'."
+        f"Unsupported LLM_PROVIDER '{selected}'. Use 'openrouter', 'huggingface', 'gemini', or 'local_t5'."
     )

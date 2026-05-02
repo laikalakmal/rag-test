@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "session_id": "20260323_125913_042fcaa6",
+    "timestamp": "2026-03-23T12:59:13.844447",
+    "experiment_type": "test",
+    "config_snapshot": {
+      "max_steps": 10,
+      "temperature": 0.1,
+      "top_k": 5,
+      "similarity_threshold": 0.3,
+      "memory_max_turns": 10,
+      "memory_enabled": true,
+      "enabled_tools": [
+        "search_knowledge_base",
+        "calculator",
+        "get_current_date"
+      ],
+      "active_defenses": []
+    },
+    "query": "What is 10 plus 5?"
+  },
+  "reasoning_steps": [
+    {
+      "step_number": 1,
+      "thought": "To find the answer to the question, I need to perform a mathematical operation. I can use the calculator tool to evaluate the expression.",
+      "action": "calculator",
+      "action_input": "10 + 5",
+      "observation": "15",
+      "is_final": false
+    },
+    {
+      "step_number": 2,
+      "thought": "",
+      "action": "",
+      "action_input": "",
+      "observation": "",
+      "is_final": true
+    }
+  ],
+  "tool_calls": [
+    {
+      "step": 1,
+      "tool_name": "calculator",
+      "input": "10 + 5",
+      "output": "15",
+      "error": ""
+    }
+  ],
+  "memory_snapshots": [],
+  "final_answer": "The answer to the question \"What is 10 plus 5?\" is 15.",
+  "terminated_reason": "completed",
+  "total_steps": 2,
+  "execution_time_seconds": 17.814891
+}

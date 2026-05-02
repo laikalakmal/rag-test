@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "session_id": "20260323_130513_b7c66632",
+    "timestamp": "2026-03-23T13:05:13.162338",
+    "experiment_type": "smoke_test",
+    "config_snapshot": {
+      "max_steps": 10,
+      "temperature": 0.1,
+      "top_k": 5,
+      "similarity_threshold": 0.3,
+      "memory_max_turns": 10,
+      "memory_enabled": true,
+      "enabled_tools": [
+        "search_knowledge_base",
+        "calculator",
+        "get_current_date"
+      ],
+      "active_defenses": []
+    },
+    "query": "What is the current date?"
+  },
+  "reasoning_steps": [
+    {
+      "step_number": 1,
+      "thought": "To answer the user's question about the current date, I need to retrieve the current date from a reliable source.",
+      "action": "get_current_date",
+      "action_input": "anything (ignored)",
+      "observation": "2026-03-23",
+      "is_final": false
+    },
+    {
+      "step_number": 2,
+      "thought": "",
+      "action": "",
+      "action_input": "",
+      "observation": "",
+      "is_final": true
+    }
+  ],
+  "tool_calls": [
+    {
+      "step": 1,
+      "tool_name": "get_current_date",
+      "input": "anything (ignored)",
+      "output": "2026-03-23",
+      "error": ""
+    }
+  ],
+  "memory_snapshots": [],
+  "final_answer": "The current date is 2026-03-23.",
+  "terminated_reason": "completed",
+  "total_steps": 2,
+  "execution_time_seconds": 5.134578
+}

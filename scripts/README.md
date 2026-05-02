@@ -1,12 +1,42 @@
-# Executable Scripts
+# Scripts Directory
 
-High-level scripts for research pipeline.
+User-facing command-line scripts for the RAG agent system.
 
-## Usage Order
+## Available Scripts
 
-1. `01_setup_corpus.sh` - Download and build corpus (20-45 min)
-2. `02_test_baseline.py` - Test undefended RAG
-3. `03_implement_defenses.py` - Test defenses
-4. `04_generate_adaptive_attacks.py` - Evolve attacks
-5. `05_run_experiments.py` - Full evaluation
-6. `06_analyze_results.py` - Generate report
+### `run_agent.py` - Interactive RAG Agent CLI
+Main interface for querying the agent.
+
+**Usage:**
+```bash
+# Interactive chat mode
+python3 scripts/run_agent.py
+
+# Single query
+python3 scripts/run_agent.py --query "What is machine learning?"
+
+# Quiet mode (just the answer)
+python3 scripts/run_agent.py --query "Calculate 50 * 2" --quiet
+
+# With logging enabled
+python3 scripts/run_agent.py --log --experiment-type baseline
+
+# Show reasoning steps
+python3 scripts/run_agent.py --query "Your question" --verbose
+```
+
+**Commands in interactive mode:**
+- `quit` or `exit` - Exit the program
+- `clear` - Clear conversation memory
+- `memory` - Show conversation history
+- `help` - Show available commands
+
+## Corpus Building Scripts
+
+Corpus building scripts are in `src/corpus/`:
+- `download_wikipedia.py` - Download Wikipedia articles
+- `download_arxiv.py` - Download arXiv abstracts
+- `create_synthetic.py` - Generate synthetic documents
+- `combine_corpus.py` - Merge all sources
+- `chunk_documents.py` - Split into chunks
+- `build_vector_db.py` - Build FAISS index

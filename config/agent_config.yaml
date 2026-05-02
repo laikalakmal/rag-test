@@ -1,0 +1,131 @@
+# RAG Agent Configuration
+# All tunable parameters for experiments and baseline behavior
+
+# ============================================================================
+# AGENT BEHAVIOR
+# ============================================================================
+agent:
+  # Maximum reasoning steps before forcing termination
+  # Increased to allow search + answer cycle
+  max_steps: 12
+  
+  # Maximum tool calls allowed in a single step
+  # Prevents rapid-fire tool abuse
+  max_tool_calls_per_step: 3
+  
+  # Temperature for the agent's LLM reasoning
+  # Lower = more deterministic (better for reproducibility)
+  temperature: 0.0
+
+# ============================================================================
+# RETRIEVAL SETTINGS
+# ============================================================================
+retrieval:
+  # Number of chunks to retrieve per search
+  top_k: 5
+  
+  # Minimum similarity score (0-1) to include a chunk
+  # Chunks below this are filtered out
+  similarity_threshold: 0.3
+  
+  # Path to vector database
+  vector_db_path: "vector_db/baseline"
+  
+  # Embedding model (must match what was used to build the index)
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+
+# ============================================================================
+# CONVERSATION MEMORY
+# ============================================================================
+memory:
+  # Maximum turns to remember (user + assistant each count as 1 turn)
+  # Set to 0 for stateless mode (no memory)
+  max_turns: 10
+  
+  # Enable/disable memory entirely
+  # When false, agent has no conversation context
+  enabled: true
+
+# ============================================================================
+# TOOLS
+# ============================================================================
+tools:
+  # Which tools are available to the agent
+  # Remove tools from this list to disable them
+  enabled_tools:
+    - search_knowledge_base
+    - calculator
+    - get_current_date
+    # summarize_document is optional - requires LLM credits
+  
+  # Calculator safety mode (reject non-arithmetic inputs)
+  calculator_safe_mode: true
+  
+  # Whether to include tool descriptions in the agent prompt
+  include_descriptions: true
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  # Base directory for experiment logs
+  log_dir: "logs/agent_runs"
+  
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  log_level: "INFO"
+  
+  # Save full reasoning trace (thoughts, actions, observations)
+  save_reasoning_steps: true
+  
+  # Save retrieved chunks with similarity scores
+  save_retrieved_chunks: true
+  
+  # Save conversation memory state at each step
+  save_memory_snapshots: false
+
+# ============================================================================
+# DEFENSE MECHANISMS
+# ============================================================================
+defenses:
+  # Which defenses are active (empty list = no defenses, baseline mode)
+  active_defenses: []
+  # Options when implementing defenses:
+  #   - hierarchical_prompt
+  #   - pattern_matching
+  #   - embedding_filter
+  #   - relevance_filter
+  #   - response_verifier
+  #   - trust_scoring
+  
+  # Trust score threshold (0-1)
+  # Chunks with trust_score below this are excluded or downweighted
+  trust_score_threshold: 0.5
+  
+  # Pattern matching: reject chunks containing these phrases
+  # (Used by pattern_matching defense)
+  blocked_patterns:
+    - "ignore previous instructions"
+    - "disregard all"
+    - "system prompt:"
+    - "you are now"
+    - "new instructions:"
+  
+  # Relevance filter: minimum semantic similarity between query and chunk
+  # (Used by relevance_filter defense)
+  relevance_threshold: 0.4
+
+# ============================================================================
+# EXPERIMENT SETTINGS
+# ============================================================================
+experiment:
+  # Unique identifier for this run (auto-generated if empty)
+  run_id: ""
+  
+  # Experiment type: baseline, defense_test, attack_test, adaptive_attack
+  experiment_type: "baseline"
+  
+  # Seed for reproducibility
+  random_seed: 42
+  
+  # Save results to this directory
+  results_dir: "results"
