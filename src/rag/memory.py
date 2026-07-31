@@ -14,6 +14,7 @@ from typing import Literal
 class Turn:
     role: Literal["user", "assistant", "system"]
     content: str
+    reasoning_trace: str = ""
 
 
 class ConversationMemory:
@@ -30,9 +31,9 @@ class ConversationMemory:
         self.max_turns = max_turns
         self._turns: list[Turn] = []
 
-    def add(self, role: Literal["user", "assistant", "system"], content: str) -> None:
+    def add(self, role: Literal["user", "assistant", "system"], content: str, reasoning_trace: str = "") -> None:
         """Append a turn, evicting the oldest if over the window."""
-        self._turns.append(Turn(role=role, content=content))
+        self._turns.append(Turn(role=role, content=content, reasoning_trace=reasoning_trace))
         if self.max_turns > 0 and len(self._turns) > self.max_turns:
             self._turns = self._turns[-self.max_turns:]
 
@@ -40,7 +41,7 @@ class ConversationMemory:
         """Return all turns as a list of {role, content} dicts for LLM prompt construction."""
         return [{"role": t.role, "content": t.content} for t in self._turns]
 
-    def format_for_prompt(self) -> str:
+    def format_for_prompt(self, include_reasoning: bool = False) -> str:
         """
         Return a plain-text block suitable for insertion into a prompt.
         Empty string if no history.
@@ -50,6 +51,8 @@ class ConversationMemory:
         lines = []
         for t in self._turns:
             prefix = {"user": "User", "assistant": "Assistant", "system": "System"}[t.role]
+            if include_reasoning and t.reasoning_trace:
+                lines.append(f"{prefix} Reasoning:\n{t.reasoning_trace}")
             lines.append(f"{prefix}: {t.content}")
         return "\n".join(lines)
 

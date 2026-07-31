@@ -67,6 +67,15 @@ class ExperimentConfig:
 
 
 @dataclass
+class JudgeConfig:
+    """Configuration for LLM-as-a-Judge evaluation."""
+    model: str = "mistral:7b"
+    api_url: str = "http://localhost:11434/api/generate"
+    temperature: float = 0.0
+    timeout: int = 120
+
+
+@dataclass
 class Config:
     """Complete configuration for the RAG agent system."""
     agent: AgentConfig
@@ -76,6 +85,7 @@ class Config:
     logging: LoggingConfig
     defenses: DefensesConfig
     experiment: ExperimentConfig
+    judge: JudgeConfig
 
 
 def load_config(config_path: Optional[str] = None) -> Config:
@@ -117,7 +127,8 @@ def load_config(config_path: Optional[str] = None) -> Config:
         tools=ToolsConfig(**data.get('tools', {})),
         logging=LoggingConfig(**data.get('logging', {})),
         defenses=DefensesConfig(**data.get('defenses', {})),
-        experiment=ExperimentConfig(**data.get('experiment', {}))
+        experiment=ExperimentConfig(**data.get('experiment', {})),
+        judge=JudgeConfig(**data.get('judge', {})),
     )
 
 

@@ -115,6 +115,23 @@ defenses:
   relevance_threshold: 0.4
 
 # ============================================================================
+# LLM JUDGE SETTINGS
+# ============================================================================
+judge:
+  # Model to use for LLM-as-a-Judge evaluation
+  # Should be different from the agent model to avoid self-evaluation bias
+  model: "mistral:7b"
+  
+  # Ollama API endpoint
+  api_url: "http://localhost:11434/api/generate"
+  
+  # Temperature (0.0 = deterministic judgments)
+  temperature: 0.0
+  
+  # Timeout for judge LLM calls (seconds)
+  timeout: 120
+
+# ============================================================================
 # EXPERIMENT SETTINGS
 # ============================================================================
 experiment:
