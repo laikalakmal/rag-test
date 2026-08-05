@@ -324,8 +324,19 @@ def main():
                         help='Evaluation method: heuristic (keyword matching), llm (LLM-as-a-Judge), or both.')
     parser.add_argument('--judge-model', type=str, default=None,
                         help='Override the LLM judge model (e.g., mistral:7b, gemma:7b).')
+    parser.add_argument('--agent-model', type=str, default=None,
+                        help='Override the RAG agent model (e.g., mistral:7b, gemma:7b, gemini-3.5-flash).')
                         
     args = parser.parse_args()
+    
+    if args.agent_model:
+        if args.agent_model.lower().startswith("gemini"):
+            os.environ["LLM_PROVIDER"] = "gemini"
+            os.environ["GEMINI_MODEL"] = args.agent_model
+        else:
+            os.environ["LLM_PROVIDER"] = "ollama"
+            os.environ["OLLAMA_MODEL"] = args.agent_model
+
     
     # Build judge if needed
     judge = None
@@ -336,11 +347,27 @@ def main():
         print(f"LLM Judge initialized: model={judge.model}")
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Extract agent LLM info from environment variables
+    provider = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
+    if provider in {"ollama", "local_ollama"}:
+        agent_model = os.getenv("OLLAMA_MODEL", "llama3").strip()
+    elif provider == "gemini":
+        agent_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash").strip()
+    else:
+        agent_model = "unknown"
+        
+    print(f"RAG Agent configuration: provider='{provider}', model='{agent_model}'")
+
+        
     report = {
         "timestamp": timestamp,
         "config_used": args.config or "default",
         "sample_size": args.sample_size,
         "judge_mode": args.judge,
+        "agent_llm_provider": provider,
+        "agent_llm_model": agent_model,
+        "judge_llm_model": judge.model if judge else "none"
     }
     
     if args.dataset in ['attacks', 'all']:
