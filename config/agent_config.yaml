@@ -95,20 +95,20 @@ defenses:
   #   - embedding_filter
   #   - relevance_filter
   #   - response_verifier
-  #   - trust_scoring
   
-  # Trust score threshold (0-1)
-  # Chunks with trust_score below this are excluded or downweighted
-  trust_score_threshold: 0.5
-  
-  # Pattern matching: reject chunks containing these phrases
-  # (Used by pattern_matching defense)
+  # Configuration for PatternMatchingDefense
   blocked_patterns:
     - "ignore previous instructions"
-    - "disregard all"
-    - "system prompt:"
-    - "you are now"
-    - "new instructions:"
+    - "system prompt"
+    - "disregard all prior"
+    - "new instructions"
+    - "override"
+    - "maintaining a safe and respectful environment"
+    - "cannot fulfill"
+    - "refuse to answer"
+    - "policy"     
+  # Configuration for TrustScoringDefense
+  trust_score_threshold: 0.5
   
   # Relevance filter: minimum semantic similarity between query and chunk
   # (Used by relevance_filter defense)

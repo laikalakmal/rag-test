@@ -33,6 +33,47 @@ class OllamaLLM(LLM):
     timeout: int = 120
     temperature: float = 0.2
 
+    def _post_with_retry(self, payload: dict) -> dict:
+        """Internal helper to POST to Ollama with retry and exponential backoff.
+        Reads configuration from environment variables:
+          OLLAMA_MAX_RETRIES (default 3)
+          OLLAMA_BACKOFF_FACTOR (default 2.0)
+          OLLAMA_INITIAL_DELAY (default 0.5 seconds)
+        """
+        max_retries = int(os.getenv("OLLAMA_MAX_RETRIES", "3"))
+        backoff_factor = float(os.getenv("OLLAMA_BACKOFF_FACTOR", "2.0"))
+        initial_delay = float(os.getenv("OLLAMA_INITIAL_DELAY", "0.5"))
+        attempt = 0
+        while True:
+            try:
+                response = requests.post(
+                    self.api_url,
+                    json=payload,
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                return response.json()
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                attempt += 1
+                if attempt > max_retries:
+                    logger.error(f"Ollama request failed after {max_retries} retries: {e}")
+                    raise
+                delay = initial_delay * (backoff_factor ** (attempt - 1))
+                logger.warning(f"Ollama request error ({e}); retry {attempt}/{max_retries} after {delay:.2f}s")
+                time.sleep(delay)
+            except requests.exceptions.HTTPError as e:
+                status = e.response.status_code
+                if 500 <= status < 600:
+                    attempt += 1
+                    if attempt > max_retries:
+                        logger.error(f"Ollama server error after {max_retries} retries: {e}")
+                        raise
+                    delay = initial_delay * (backoff_factor ** (attempt - 1))
+                    logger.warning(f"Ollama server error {status}; retry {attempt}/{max_retries} after {delay:.2f}s")
+                    time.sleep(delay)
+                else:
+                    raise
+
     def _call(self, prompt: str, stop=None, run_manager=None, **kwargs) -> str:
         payload = {
             "model": self.model,
@@ -42,17 +83,11 @@ class OllamaLLM(LLM):
                 "temperature": self.temperature
             }
         }
-
-        response = requests.post(
-            self.api_url,
-            json=payload,
-            timeout=self.timeout,
-        )
-
-        if response.status_code >= 400:
-            raise RuntimeError(f"Ollama error {response.status_code}: {response.text}")
-
-        data = response.json()
+        data = self._post_with_retry(payload)
+        # Optional cooldown after a successful request
+        cooldown = float(os.getenv("OLLAMA_COOLDOWN_SECONDS", "0.5"))
+        if cooldown > 0:
+            time.sleep(cooldown)
         return data.get("response", "").strip()
 
     @property

@@ -31,8 +31,8 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from chunk_formatter import format_chunks
-from defense_hooks import DefensePipeline
+from src.rag.chunk_formatter import format_chunks
+from src.rag.defense_hooks import DefensePipeline
 
 # ── shared call log ───────────────────────────────────────────────────────────
 
