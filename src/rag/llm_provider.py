@@ -80,7 +80,8 @@ class OllamaLLM(LLM):
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": self.temperature
+                "temperature": self.temperature,
+                 "num_thread": 8
             }
         }
         data = self._post_with_retry(payload)

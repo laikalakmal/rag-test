@@ -120,7 +120,6 @@ class LLMJudge:
         self.api_url = api_url
         self.temperature = temperature
         self.timeout = timeout
-
         logger.info(
             f"LLMJudge initialized: model={model}, "
             f"api_url={api_url}, temperature={temperature}"
@@ -268,7 +267,9 @@ class LLMJudge:
             "stream": False,
             "options": {
                 "temperature": self.temperature,
+                ""
             },
+            "keep_alive": 0,
         }
 
         try:

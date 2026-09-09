@@ -187,11 +187,13 @@ def run_attacks(sample_size: int, config_path: str, judge_mode: str = "heuristic
         
     return results
 
-def run_benign(sample_size: int, config_path: str, judge_mode: str = "heuristic", judge: LLMJudge = None):
+def run_benign(sample_size: int, config_path: str, judge_mode: str = "heuristic", judge: LLMJudge = None, offset: int = 0):
     """Run evaluation against the benign query dataset (FPR test)."""
     loader = BenignQueryLoader()
     queries = loader.get_all_queries()
     
+    if offset > 0:
+        queries = queries[offset:]
     if sample_size > 0:
         queries = queries[:sample_size]
         
@@ -383,7 +385,7 @@ def main():
             print(f"[Agreement] Heuristic vs LLM Judge: {attack_results['agreement']['agreement_pct']:.1f}%")
         
     if args.dataset in ['benign', 'all']:
-        benign_results = run_benign(args.sample_size, args.config, args.judge, judge)
+        benign_results = run_benign(args.sample_size, args.config, args.judge, judge, offset=args.offset)
         report["benign_evaluation"] = benign_results
 
         if "heuristic" in benign_results:
