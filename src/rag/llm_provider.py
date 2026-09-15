@@ -4,6 +4,9 @@ from typing import Optional
 
 import requests
 from langchain_core.language_models.llms import LLM
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _env_bool(name: str, default: bool) -> bool:

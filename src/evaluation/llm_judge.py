@@ -267,9 +267,8 @@ class LLMJudge:
             "stream": False,
             "options": {
                 "temperature": self.temperature,
-                ""
             },
-            "keep_alive": 0,
+            # "keep_alive": 0,
         }
 
         try:

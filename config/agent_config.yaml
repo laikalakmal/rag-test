@@ -88,12 +88,13 @@ logging:
 # ============================================================================
 defenses:
   # Which defenses are active (empty list = no defenses, baseline mode)
-  active_defenses: []
-  # Options when implementing defenses:
-  #   - hierarchical_prompt
+  # To disable a defense, simply remove it from this list.
+  active_defenses:
+    - relevance_filtering
+  # Other available defenses:
   #   - pattern_matching
+  #   - trust_scoring
   #   - embedding_filter
-  #   - relevance_filter
   #   - response_verifier
   
   # Configuration for PatternMatchingDefense

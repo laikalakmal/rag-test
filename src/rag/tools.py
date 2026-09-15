@@ -44,6 +44,7 @@ class ToolCall:
     input:     str
     output:    str
     error:     str = ""
+    metadata:  dict = field(default_factory=dict)
 
 
 class ToolCallLog:
@@ -88,9 +89,15 @@ class BaseTool:
         except Exception as exc:
             output = f"[Tool error: {exc}]"
             error = str(exc)
+        metadata = self._get_metadata()
         self._log.record(ToolCall(step=step, tool_name=self.name,
-                                  input=tool_input, output=output, error=error))
+                                  input=tool_input, output=output,
+                                  error=error, metadata=metadata))
         return output
+
+    def _get_metadata(self) -> dict:
+        """Override in subclasses to attach metadata (e.g., defense info) to the tool call record."""
+        return {}
 
     def _execute(self, tool_input: str) -> str:
         raise NotImplementedError
@@ -169,9 +176,14 @@ class SearchKnowledgeBase(BaseTool):
             self.last_defense_meta = defense_meta
             self.last_results = filtered_chunks
         else:
+            self.last_defense_meta = {}
             self.last_results = raw_chunks
             
         return format_chunks(self.last_results)
+
+    def _get_metadata(self) -> dict:
+        """Attach defense pipeline metadata to the tool call record."""
+        return {"defense_meta": getattr(self, 'last_defense_meta', {})}
 
 
 # ── tool 2: summarize_document ────────────────────────────────────────────────

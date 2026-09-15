@@ -25,7 +25,7 @@ class ConversationMemory:
                Set to 0 for no memory (stateless, like the baseline RAG bot).
     """
 
-    def __init__(self, max_turns: int = 10):
+    def __init__(self, max_turns: int = 5):
         if max_turns < 0:
             raise ValueError("max_turns must be >= 0")
         self.max_turns = max_turns
