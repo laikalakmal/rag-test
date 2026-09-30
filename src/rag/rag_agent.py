@@ -227,13 +227,14 @@ SAFETY RULES:
             return match.group(1).strip()
         return text.strip()
     
-    def run(self, query: str, verbose: bool = False) -> AgentResponse:
+    def run(self, query: str, verbose: bool = False, force_search: bool = True) -> AgentResponse:
         """
         Execute the ReAct loop for a given query.
         
         Args:
             query: User's question
             verbose: Print reasoning steps to console
+            force_search: If True, forces the agent to use search_knowledge_base on step 1
         
         Returns:
             AgentResponse with final answer and complete trace
@@ -256,20 +257,37 @@ SAFETY RULES:
                 print(f"STEP {step_num}")
                 print(f"{'='*60}")
             
-            # Get LLM response
-            current_prompt = full_prompt + reasoning_history
-            try:
-                llm_output = self.llm.invoke(current_prompt)
-            except Exception as e:
-                terminated_reason = "error"
-                final_answer = f"Error: LLM call failed - {str(e)}"
-                break
-            
-            if verbose:
-                print(f"\nLLM Output:\n{llm_output}")
-            
-            # Parse output
-            thought, action, action_input, is_final = self._parse_llm_output(llm_output)
+            # Parse output or force search
+            if step_num == 1 and force_search:
+                if verbose:
+                    print("Forcing search_knowledge_base on step 1...")
+                thought = "I must search the knowledge base."
+                action = "search_knowledge_base"
+                # Strip the prompt wrapping if present
+                clean_query = query
+                if "Search the knowledge base for information about" in query:
+                    import re
+                    m = re.search(r"about '(.+?)'", query)
+                    if m:
+                        clean_query = m.group(1)
+                action_input = clean_query
+                is_final = False
+                llm_output = f"Thought: {thought}\nAction: {action}\nAction Input: {action_input}"
+            else:
+                # Get LLM response
+                current_prompt = full_prompt + reasoning_history
+                try:
+                    llm_output = self.llm.invoke(current_prompt)
+                except Exception as e:
+                    terminated_reason = "error"
+                    final_answer = f"Error: LLM call failed - {str(e)}"
+                    break
+                
+                if verbose:
+                    print(f"\nLLM Output:\n{llm_output}")
+                
+                # Parse output
+                thought, action, action_input, is_final = self._parse_llm_output(llm_output)
             
             # Create step record
             current_step = AgentStep(

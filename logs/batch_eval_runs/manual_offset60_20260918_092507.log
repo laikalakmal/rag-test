@@ -1,0 +1,77 @@
+'[Errno -3] Temporary failure in name resolution' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json
+Retrying in 1s [Retry 1/5].
+LLM Judge initialized: model=llama3:latest
+RAG Agent configuration: provider='ollama', model='mistral:7b'
+Evaluating 20 attacks (judge=llm)...
+Initializing agent for attack evaluation...
+Traceback (most recent call last):
+  File "/data/learn-ai/rag-test/src/evaluation/run_evaluations.py", line 630, in <module>
+    main()
+  File "/data/learn-ai/rag-test/src/evaluation/run_evaluations.py", line 524, in main
+    attack_results = run_attacks(args.sample_size, args.config, args.judge, judge, attack_source=args.attack_source, offset=args.offset)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/src/evaluation/run_evaluations.py", line 106, in run_attacks
+    agent = RAGAgent(config_path=config_path)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/src/evaluation/../../src/rag/rag_agent.py", line 103, in __init__
+    hooks.append(RelevanceFilteringDefense())
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/src/evaluation/../../src/rag/defense_hooks.py", line 161, in __init__
+    self._model = SentenceTransformer(model_name)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/sentence_transformers/SentenceTransformer.py", line 327, in __init__
+    modules, self.module_kwargs = self._load_sbert_model(
+                                  ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/sentence_transformers/SentenceTransformer.py", line 2305, in _load_sbert_model
+    module = module_class.load(
+             ^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/sentence_transformers/models/Transformer.py", line 366, in load
+    return cls(model_name_or_path=model_name_or_path, **init_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/sentence_transformers/models/Transformer.py", line 88, in __init__
+    config, is_peft_model = self._load_config(model_name_or_path, cache_dir, backend, config_args)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/sentence_transformers/models/Transformer.py", line 139, in _load_config
+    find_adapter_config_file(
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/transformers/utils/peft_utils.py", line 83, in find_adapter_config_file
+    adapter_cached_filename = cached_file(
+                              ^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/transformers/utils/hub.py", line 276, in cached_file
+    file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/transformers/utils/hub.py", line 507, in cached_files
+    raise e
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/transformers/utils/hub.py", line 419, in cached_files
+    hf_hub_download(
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1032, in hf_hub_download
+    return _hf_hub_download_to_cache_dir(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1165, in _hf_hub_download_to_cache_dir
+    _get_metadata_or_catch_error(
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1699, in _get_metadata_or_catch_error
+    metadata = get_hf_file_metadata(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1622, in get_hf_file_metadata
+    response = _httpx_follow_relative_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 302, in _httpx_follow_relative_redirects
+    response = http_backoff(
+               ^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/utils/_http.py", line 506, in http_backoff
+    return next(
+           ^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/huggingface_hub/utils/_http.py", line 414, in _http_backoff_base
+    response = client.request(method=method, url=url, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/httpx/_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/learn-ai/rag-test/venv/lib/python3.12/site-packages/httpx/_client.py", line 901, in send
+    raise RuntimeError("Cannot send a request, as the client has been closed.")
+RuntimeError: Cannot send a request, as the client has been closed.

@@ -84,7 +84,8 @@ class AgentLogger:
         query: str,
         verbose: bool = False,
         session_id: Optional[str] = None,
-        save_to_disk: bool = True
+        save_to_disk: bool = True,
+        **kwargs
     ) -> Any:  # returns AgentResponse
         """
         Run the agent on a query and log everything.
@@ -117,7 +118,7 @@ class AgentLogger:
         
         # Execute agent
         start_time = datetime.now()
-        response = self.agent.run(query, verbose=verbose)
+        response = self.agent.run(query, verbose=verbose, **kwargs)
         execution_time = (datetime.now() - start_time).total_seconds()
         
         # Collect memory snapshots if enabled
