@@ -74,6 +74,25 @@ class AttackLoader:
         else:
             raise ValueError(f"Unknown external dataset: {dataset_name}")
 
+    def load_adaptive_dataset(self, data_path: Optional[str] = None) -> List[Dict]:
+        """
+        Loads the adaptive attack dataset from JSON and sets it as the active attack pool.
+        """
+        if data_path is None:
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            data_path = os.path.join(base_dir, 'data', 'attacks', 'adaptive_attacks.json')
+            
+        if not os.path.exists(data_path):
+            raise FileNotFoundError(f"Adaptive attack dataset not found at {data_path}. Run create_adaptive_attacks.py first.")
+
+        with open(data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            self.metadata = data.get("metadata", {})
+            self.attacks = data.get("attacks", [])
+        
+        print(f"Loaded {len(self.attacks)} adaptive attacks from {data_path}.")
+        return self.attacks
+
 
 class BenignQueryLoader:
     """Loads and queries the benign test query dataset for FPR testing."""

@@ -19,6 +19,8 @@ import time
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional
 
+from utils.gemini_client import invoke_gemini_with_retry, extract_gemini_text, GeminiRateLimiter
+
 logger = logging.getLogger(__name__)
 
 
@@ -136,6 +138,14 @@ class LLMJudge:
         self.api_url = api_url
         self.temperature = temperature
         self.timeout = timeout
+
+        if not os.getenv("GOOGLE_API_KEY") and not os.getenv("GEMINI_API_KEY"):
+            try:
+                from rag.llm_provider import load_dotenv
+                load_dotenv()
+            except Exception:
+                pass
+
         logger.info(
             f"LLMJudge initialized: model={model}, "
             f"api_url={api_url}, temperature={temperature}"
@@ -198,8 +208,10 @@ class LLMJudge:
         """
         category = attack_metadata.get("category", "unknown")
         payload = (
-            attack_metadata.get("payload", "")
+            attack_metadata.get("original_injected", "")
+            or attack_metadata.get("payload", "")
             or attack_metadata.get("injected_text", "")
+            or attack_metadata.get("adaptive_document", "")
             or attack_metadata.get("full_document", "")
         )
 
@@ -260,56 +272,46 @@ class LLMJudge:
                 error=True,
             )
 
-    def _call_gemini(self, prompt: str, max_retries: int = 3) -> str:
-        """Make a call to Google Gemini using Langchain with rate-limit retry."""
+    def _call_gemini(self, prompt: str, max_retries: int = 4) -> str:
+        """Make a call to Google Gemini using Langchain with rate-limit pacing and retry."""
         from langchain_google_genai import ChatGoogleGenerativeAI
 
+        api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
         llm = ChatGoogleGenerativeAI(
             model=self.model,
             temperature=self.temperature,
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            google_api_key=api_key,
         )
 
-        for attempt in range(max_retries):
-            try:
-                time.sleep(4)  # Rate limiting for Gemini free tier (15 RPM)
-                response = llm.invoke(prompt)
-                content = response.content
-                if isinstance(content, list):
-                    # Extract text from list of blocks
-                    text_parts = []
-                    for part in content:
-                        if isinstance(part, dict) and "text" in part:
-                            text_parts.append(part["text"])
-                        else:
-                            text_parts.append(str(part))
-                    return " ".join(text_parts)
-                return str(content)
-            except Exception as e:
-                err_msg = str(e)
-                if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-                    wait_time = 15.0 * (attempt + 1)
-                    delay_match = re.search(r"retry in (\d+(?:\.\d+)?)s", err_msg, re.IGNORECASE)
-                    if delay_match:
-                        wait_time = max(float(delay_match.group(1)) + 1.0, wait_time)
-                    logger.warning(
-                        f"Gemini 429 Rate limit / Quota exceeded (attempt {attempt+1}/{max_retries}). "
-                        f"Waiting {wait_time:.1f}s before retry... Error: {e}"
-                    )
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"Gemini API error: {e}")
-                    raise
+        fallback_models = [
+            m for m in [
+                "gemini-3.5-flash-lite",
+                "gemini-3.1-flash-lite",
+                "gemini-3.5-flash",
+                "gemini-3.6-flash",
+                "gemini-3.7-flash",
+            ] if m != self.model
+        ]
 
-        fallback_enabled = os.getenv("GEMINI_FALLBACK_OLLAMA", "false").lower() in ("true", "1")
-        if fallback_enabled:
-            logger.warning(f"Gemini API failed after {max_retries} attempts. Falling back to Ollama (llama3).")
-            return self._call_ollama(prompt, fallback_model="llama3")
+        try:
+            return invoke_gemini_with_retry(
+                llm=llm,
+                prompt=prompt,
+                model_name=self.model,
+                max_retries=max_retries,
+                fallback_models=fallback_models,
+                api_key=api_key,
+            )
+        except Exception as e:
+            fallback_enabled = os.getenv("GEMINI_FALLBACK_OLLAMA", "false").lower() in ("true", "1")
+            if fallback_enabled:
+                logger.warning(f"Gemini API failed after {max_retries} attempts. Falling back to Ollama (llama3).")
+                return self._call_ollama(prompt, fallback_model="llama3")
 
-        raise RuntimeError(
-            f"Gemini judge API failed after {max_retries} retries (model={self.model}). "
-            f"Daily quota may be exhausted. Aborting evaluation to prevent silent model degradation."
-        )
+            raise RuntimeError(
+                f"Gemini judge API failed after {max_retries} retries (model={self.model}). "
+                f"Error: {e}"
+            )
 
     def _call_ollama(self, prompt: str, fallback_model: str = None) -> str:
         """Make a raw Ollama API call."""

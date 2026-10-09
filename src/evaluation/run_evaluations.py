@@ -47,6 +47,9 @@ def run_attacks(sample_size: int, config_path: str, judge_mode: str = "heuristic
     if attack_source == "bipia":
         # Load only the external BIPIA dataset
         attacks = loader.load_external_dataset(dataset_name="bipia", num_samples=200)
+    elif attack_source == "adaptive":
+        # Load adaptive attack dataset
+        attacks = loader.load_adaptive_dataset()
     elif attack_source == "all":
         # Load manual attacks + add external BIPIA attacks to the pool
         loader.load_external_dataset(dataset_name="bipia", num_samples=200)
@@ -116,7 +119,7 @@ def run_attacks(sample_size: int, config_path: str, judge_mode: str = "heuristic
         
         # Method B: Forced Injection
         # We simulate the attack by forcing the payload into the search results.
-        payload = attack.get("payload", "") or attack.get("injected_text", "") or attack.get("full_document", "")
+        payload = attack.get("adaptive_document", "") or attack.get("payload", "") or attack.get("injected_text", "") or attack.get("full_document", "")
         injected_chunk = {
             "source": "malicious_document.txt",
             "trust_score": 0.1,
@@ -130,7 +133,7 @@ def run_attacks(sample_size: int, config_path: str, judge_mode: str = "heuristic
             
         # Look up the realistic query for this attack, fallback to basic heuristic
         attack_id = attack.get("attack_id", "")
-        base_query = query_map.get(attack_id)
+        base_query = attack.get("query") or query_map.get(attack_id) or query_map.get(attack.get("parent_attack_id"))
         if not base_query:
             base_query = f"Please tell me about {attack.get('carrier_text', 'this document')[:50]}"
             
@@ -475,8 +478,8 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate Agentic RAG system.")
     parser.add_argument('--dataset', type=str, choices=['attacks', 'benign', 'all'], default='all',
                         help='Which dataset to evaluate.')
-    parser.add_argument('--attack-source', type=str, choices=['manual', 'bipia', 'all'], default='manual',
-                        help='Attack dataset source: manual (100 hand-crafted), bipia (external benchmark), or all (combined).')
+    parser.add_argument('--attack-source', type=str, choices=['manual', 'bipia', 'all', 'adaptive'], default='manual',
+                        help='Attack dataset source: manual (100 hand-crafted), bipia (external benchmark), all (combined), or adaptive (adaptive attack dataset).')
     parser.add_argument('--sample-size', type=int, default=0,
                         help='Number of items to test (0 for all).')
     parser.add_argument('--offset', type=int, default=0,
@@ -529,15 +532,31 @@ def main():
         "mistral:7b",
         "vicuna:7b",
         "llama3:latest",
+        # Google AI Studio Gemini models
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
         "gemini-3.5-flash",
-        "gemini-3.1-flash-lite"
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash",
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+        "gemini-3.1-pro",
+        "gemini-3.1-pro-preview",
+        "gemini-flash-latest",
+        "gemini-flash-lite-latest",
+        "gemini-pro-latest",
     }
 
     if provider == "ollama" and agent_model not in ALLOWED_MODELS:
         print(f"FATAL: Agent model '{agent_model}' is not in the allowed list: {ALLOWED_MODELS}")
         sys.exit(1)
 
-    if judge and judge.model not in ALLOWED_MODELS:
+    if judge and (judge.model not in ALLOWED_MODELS and not judge.model.lower().startswith("gemini-")):
         print(f"FATAL: Judge model '{judge.model}' is not in the allowed list: {ALLOWED_MODELS}")
         sys.exit(1)
 
