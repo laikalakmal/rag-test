@@ -47,10 +47,16 @@ sys.path.insert(0, str(BASE_DIR / "src"))
 from rag.rag_agent import RAGAgent
 from rag.agent_logger import AgentLogger
 from attacks.attack_loader import AttackLoader
+from attacks.create_adaptive_attacks import AdaptiveAttackGenerator
 from evaluation.evaluator import LLMASREvaluator, DefenseMetadataExtractor
 from evaluation.llm_judge import LLMJudge
-from attacks.create_adaptive_attacks import AdaptiveAttackGenerator
-from rag.llm_provider import load_dotenv
+from rag.llm_provider import (
+    load_dotenv,
+    verify_ollama_model,
+    OllamaError,
+    OllamaModelNotFoundError,
+    OllamaInfrastructureError,
+)
 from utils.gemini_client import invoke_gemini_with_retry
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -83,6 +89,11 @@ class InteractiveAdaptiveAttacker:
         else:
             os.environ["LLM_PROVIDER"] = "ollama"
             os.environ["OLLAMA_MODEL"] = agent_model
+            ok, err_msg = verify_ollama_model(agent_model)
+            if not ok:
+                logger.critical(f"\n{'='*70}\n[OLLAMA PRE-FLIGHT CHECK FAILED]\n{err_msg}\n{'='*70}")
+                print(f"\nFATAL: {err_msg}\n")
+                sys.exit(1)
 
         logger.info(f"Initializing RAG Agent (model={agent_model})...")
         self.agent = RAGAgent(config_path=self.config_path)
@@ -123,6 +134,9 @@ class InteractiveAdaptiveAttacker:
         )
 
         response = logger_instance.run(agent_query, verbose=False, force_search=True)
+        if response.terminated_reason == "error" or response.final_answer.startswith("Error: LLM call failed"):
+            raise OllamaInfrastructureError(f"Agent turn failed with LLM error: {response.final_answer}")
+
         session_log = logger_instance.load_log(logger_instance.current_session_id)
 
         # In case search was skipped on first turn
@@ -139,6 +153,8 @@ class InteractiveAdaptiveAttacker:
             )
             logger_instance = AgentLogger(self.agent, experiment_type="adaptive_feedback_evaluation")
             response = logger_instance.run(retry_query, verbose=False, force_search=True)
+            if response.terminated_reason == "error" or response.final_answer.startswith("Error: LLM call failed"):
+                raise OllamaInfrastructureError(f"Agent retry turn failed with LLM error: {response.final_answer}")
             session_log = logger_instance.load_log(logger_instance.current_session_id)
 
         return session_log
@@ -428,10 +444,20 @@ def main():
             continue
 
         print(f"\n>>> Running Sample [{idx}/{len(attacks)}]: {atk_id} ({atk.get('category')} | {atk.get('technique')})")
-        res = runner.evaluate_sample(atk)
-        results.append(res)
-        completed_ids.add(atk_id)
-        save_snapshot()
+        try:
+            res = runner.evaluate_sample(atk)
+            results.append(res)
+            completed_ids.add(atk_id)
+            save_snapshot()
+        except (OllamaError, RuntimeError, ConnectionError) as e:
+            logger.critical(
+                f"\n{'='*70}\n[HALTING EVALUATION] Fatal infrastructure error on sample {atk_id}:\n{e}\n"
+                f"Aborting immediately to prevent corrupted benchmark results.\n"
+                f"Progress up to sample {idx-1} has been safely saved to {out_file}.\n{'='*70}"
+            )
+            print(f"\nFATAL: Evaluation halted on sample {atk_id} due to infrastructure error: {e}\n")
+            save_snapshot()
+            sys.exit(1)
 
     elapsed = time.time() - start_time
     total = len(results)

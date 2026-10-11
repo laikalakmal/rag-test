@@ -180,6 +180,90 @@ def update_verdict(item_idx, e_type, target_items):
     target_item["human_notes"] = new_notes
 
 
+# --- MODE SELECTION ---
+with st.sidebar:
+    st.header("Evaluation Mode")
+    eval_mode = st.radio(
+        "Mode:",
+        ["🎯 Standard Benchmark", "🔄 Adaptive Closed-Loop Feedback"],
+        index=0 if st.session_state.get("eval_mode") != "adaptive" else 1,
+        help="Switch between Standard Static Attacks and Adaptive Closed-Loop Feedback evaluation."
+    )
+    st.session_state["eval_mode"] = "adaptive" if eval_mode.startswith("🔄") else "standard"
+    st.markdown("---")
+
+if st.session_state.get("eval_mode") == "adaptive":
+    import importlib
+    import src.evaluation.adaptive_hitl_module as ahm
+    importlib.reload(ahm)
+
+    with st.sidebar:
+        st.header("Adaptive Run Selection")
+        adaptive_reports = ahm.get_adaptive_reports_list()
+        if not adaptive_reports:
+            st.warning(f"No adaptive evaluation reports found in {ahm.ADAPTIVE_RESULTS_DIR}")
+            st.stop()
+
+        def format_adapt_name(r_meta):
+            rev = " [✅ Reviewed]" if r_meta["is_reviewed"] else ""
+            return f"{r_meta['filename']} ({r_meta['agent_model']}){rev}"
+
+        selected_adapt_meta = st.selectbox(
+            "Select Adaptive Report",
+            adaptive_reports,
+            format_func=format_adapt_name
+        )
+
+        st.caption(f"Evaluated: {selected_adapt_meta['total_evaluated']} samples | Date: {selected_adapt_meta['date']}")
+
+        if (
+            "current_adapt_filename" not in st.session_state
+            or st.session_state["current_adapt_filename"] != selected_adapt_meta["filename"]
+        ):
+            st.session_state["current_adapt_filename"] = selected_adapt_meta["filename"]
+            rev_path = ahm.ADAPTIVE_REVIEWS_DIR / f"reviewed_{selected_adapt_meta['filename']}"
+            if rev_path.exists():
+                st.session_state["adaptive_report_data"] = ahm.load_adaptive_json(rev_path)
+                st.toast("Loaded previously saved human verifications.", icon="✅")
+            else:
+                st.session_state["adaptive_report_data"] = ahm.load_adaptive_json(selected_adapt_meta["filepath"])
+
+        st.markdown("---")
+        st.subheader("Progress Tracker")
+        adapt_data = st.session_state.get("adaptive_report_data", {})
+        adapt_details = adapt_data.get("details", [])
+        rev_count = sum(1 for d in adapt_details if d.get("human_review") or d.get("human_r1_verdict"))
+        st.metric("Reviews Completed", f"{rev_count} / {len(adapt_details)}")
+
+        st.markdown("---")
+        if st.button("💾 Save Adaptive Review", type="primary"):
+            save_path = ahm.ADAPTIVE_REVIEWS_DIR / f"reviewed_{selected_adapt_meta['filename']}"
+            ahm.save_adaptive_json(st.session_state["adaptive_report_data"], save_path)
+            st.success(f"Saved review to {save_path.name}!")
+            st.rerun()
+
+    # Main Area for Adaptive Mode
+    adapt_report_data = st.session_state.get("adaptive_report_data")
+    if not adapt_report_data:
+        st.error("Could not load adaptive report data.")
+        st.stop()
+
+    tab_adapt_dash, tab_adapt_rev, tab_adapt_exp = st.tabs([
+        "📈 Adaptive Dashboard",
+        "🔬 Two-Round Review",
+        "📊 Multi-Model CSV Export"
+    ])
+
+    with tab_adapt_dash:
+        ahm.render_adaptive_dashboard(adapt_report_data)
+    with tab_adapt_rev:
+        ahm.render_adaptive_review_panel(adapt_report_data, selected_adapt_meta["filename"])
+    with tab_adapt_exp:
+        ahm.render_adaptive_export_tab(adapt_report_data)
+
+    st.stop()
+
+# --- STANDARD BENCHMARK MODE ---
 all_reports_info = load_all_reports_info()
 
 if not all_reports_info:
@@ -830,7 +914,8 @@ if selected_report_name:
                         summary_rows = list(reader)
                         
                     if summary_rows:
-                        st.dataframe(summary_rows, use_container_width=True)
+                        from src.evaluation.adaptive_hitl_module import render_safe_table
+                        render_safe_table(summary_rows)
                         
                     col_dl1, col_dl2 = st.columns(2)
                     with col_dl1:

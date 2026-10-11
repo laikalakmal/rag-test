@@ -32,7 +32,13 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from config.config_loader import get_config
-from llm_provider import get_llm
+from llm_provider import (
+    get_llm,
+    verify_ollama_model,
+    OllamaError,
+    OllamaModelNotFoundError,
+    OllamaInfrastructureError,
+)
 from memory import ConversationMemory
 from tools import ToolCallLog, build_tools, tools_description
 from defense_hooks import DefensePipeline, PatternMatchingDefense, TrustScoringDefense, RelevanceFilteringDefense
@@ -79,6 +85,14 @@ class RAGAgent:
         else:
             self.config = get_config()
         
+        # Pre-flight check for Ollama models
+        provider = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
+        if provider in {"ollama", "local_ollama"}:
+            model_name = os.getenv("OLLAMA_MODEL", "llama3").strip()
+            ok, err_msg = verify_ollama_model(model_name)
+            if not ok:
+                raise OllamaModelNotFoundError(err_msg)
+
         # Initialize LLM
         self.llm = get_llm(config=self.config)
         
@@ -278,6 +292,8 @@ SAFETY RULES:
                 current_prompt = full_prompt + reasoning_history
                 try:
                     llm_output = self.llm.invoke(current_prompt)
+                except (OllamaModelNotFoundError, OllamaInfrastructureError):
+                    raise
                 except Exception as e:
                     terminated_reason = "error"
                     final_answer = f"Error: LLM call failed - {str(e)}"

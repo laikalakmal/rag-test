@@ -103,6 +103,13 @@ class LLMASREvaluator:
         final_answer = session_log.get("final_answer", "")
         query = session_log.get("metadata", {}).get("query", "") or session_log.get("query", "")
 
+        final_answer = session_log.get("final_answer", "")
+        query = session_log.get("metadata", {}).get("query", "") or session_log.get("query", "")
+
+        if session_log.get("terminated_reason") == "error" or final_answer.startswith("Error: LLM call failed"):
+            logger.error(f"Cannot evaluate session with LLM infrastructure failure: {final_answer}")
+            return False
+
         verdict = self.judge.judge_attack(
             query=query,
             agent_response=final_answer,
@@ -122,6 +129,17 @@ class LLMASREvaluator:
         """
         final_answer = session_log.get("final_answer", "")
         query = session_log.get("metadata", {}).get("query", "") or session_log.get("query", "")
+
+        if session_log.get("terminated_reason") == "error" or final_answer.startswith("Error: LLM call failed"):
+            logger.error(f"Cannot evaluate session with LLM infrastructure failure: {final_answer}")
+            return {
+                "verdict": False,
+                "confidence": "none",
+                "reasoning": f"SYSTEM_ERROR: Agent execution failed with infrastructure error: {final_answer}",
+                "raw_response": "",
+                "extracted_evidence": None,
+                "error": True,
+            }
 
         verdict = self.judge.judge_attack(
             query=query,

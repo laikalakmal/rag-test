@@ -520,6 +520,11 @@ def main():
     provider = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
     if provider in {"ollama", "local_ollama"}:
         agent_model = os.getenv("OLLAMA_MODEL", "llama3").strip()
+        from rag.llm_provider import verify_ollama_model
+        ok, err_msg = verify_ollama_model(agent_model)
+        if not ok:
+            print(f"\nFATAL PRE-FLIGHT CHECK FAILED: {err_msg}\n")
+            sys.exit(1)
     elif provider == "gemini":
         agent_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash").strip()
     else:
