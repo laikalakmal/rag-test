@@ -141,30 +141,53 @@ class OllamaLLM(LLM):
 
             except requests.exceptions.HTTPError as e:
                 status = e.response.status_code if e.response else 500
+                err_body = e.response.text if e.response is not None else ""
                 if 500 <= status < 600:
+                    if "token repeat limit reached" in err_body:
+                        logger.warning(
+                            f"Ollama generation aborted by token repeat limit: {err_body}. "
+                            "Treating as model degeneration and terminating step gracefully."
+                        )
+                        return {
+                            "response": "Thought: Repetitive reasoning detected.\nFinal Answer: Unable to complete query due to repetitive reasoning."
+                        }
                     attempt += 1
                     if attempt > max_retries:
-                        logger.critical(f"Ollama server error {status} after {max_retries} retries: {e}. Halting.")
+                        logger.critical(f"Ollama server error {status} after {max_retries} retries: {e} | Body: {err_body}. Halting.")
                         raise OllamaInfrastructureError(
-                            f"Ollama server returned HTTP {status} after {max_retries} attempts. Halting evaluation."
+                            f"Ollama server returned HTTP {status} after {max_retries} attempts: {err_body}. Halting evaluation."
                         )
                     delay = retry_delays[min(attempt - 1, len(retry_delays) - 1)]
                     logger.warning(
-                        f"Ollama server error {status}; waiting {delay:.1f}s before retry {attempt}/{max_retries}..."
+                        f"Ollama server error {status} (Body: {err_body}); waiting {delay:.1f}s before retry {attempt}/{max_retries}..."
                     )
                     time.sleep(delay)
                 else:
-                    raise OllamaInfrastructureError(f"Ollama returned HTTP error {status}: {e}")
+                    raise OllamaInfrastructureError(f"Ollama returned HTTP error {status}: {e} | Body: {err_body}")
 
     def _call(self, prompt: str, stop=None, run_manager=None, **kwargs) -> str:
+        stop_sequences = list(stop) if stop else []
+        default_stops = ["\nObservation:", "Observation:"]
+        for s in default_stops:
+            if s not in stop_sequences:
+                stop_sequences.append(s)
+
+        num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "384"))
+        num_thread = int(os.getenv("OLLAMA_NUM_THREADS", "8"))
+
+        options = {
+            "temperature": self.temperature,
+            "num_thread": num_thread,
+            "num_predict": num_predict,
+            "stop": stop_sequences,
+        }
+
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {
-                "temperature": self.temperature,
-                 "num_thread": 8
-            }
+            "options": options,
+            "stop": stop_sequences,
         }
         data = self._post_with_retry(payload)
         # Optional cooldown after a successful request

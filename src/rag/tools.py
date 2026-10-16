@@ -333,7 +333,7 @@ class Calculator(BaseTool):
     )
 
     def _execute(self, expression: str) -> str:
-        expression = expression.strip()
+        expression = expression.strip().replace("^", "**")
         try:
             tree = ast.parse(expression, mode="eval")
         except SyntaxError as exc:

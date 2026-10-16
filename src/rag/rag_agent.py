@@ -223,9 +223,9 @@ SAFETY RULES:
             thought = thought_match.group(1).strip()
         
         # Extract Action
-        action_match = re.search(r'Action:[\*\s]*([a-zA-Z0-9_]+)', text, re.IGNORECASE)
+        action_match = re.search(r'Action:[\*\s]*([a-zA-Z0-9_\\-]+)', text, re.IGNORECASE)
         if action_match:
-            action = action_match.group(1).strip()
+            action = action_match.group(1).replace("\\", "").strip()
         
         # Extract Action Input
         action_input_match = re.search(r'Action Input:\s*\*?\*?\s*(?:\"|\')?(.+?)(?:\"|\')?(?=\nObservation:|\nThought:|\nAction:|\nFinal Answer:|$)', text, re.DOTALL | re.IGNORECASE)
@@ -279,9 +279,9 @@ SAFETY RULES:
                 action = "search_knowledge_base"
                 # Strip the prompt wrapping if present
                 clean_query = query
-                if "Search the knowledge base for information about" in query:
+                if "about" in query:
                     import re
-                    m = re.search(r"about '(.+?)'", query)
+                    m = re.search(r"about ['\"](.+?)['\"]", query, re.DOTALL | re.IGNORECASE)
                     if m:
                         clean_query = m.group(1)
                 action_input = clean_query
