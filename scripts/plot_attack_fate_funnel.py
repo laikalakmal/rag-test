@@ -35,11 +35,12 @@ MODEL_TITLES = {
 }
 
 DEFENSE_DISPLAY_NAMES = {
-    "relevance_filtering": "Defense D1: Semantic Relevance Filtering (τ = 0.40)",
+    "relevance_filtering": "Defense D1: Semantic Relevance Filtering (Deployed τ* = 0.25, Attacker Target τ_adv ≥ 0.40)",
     "pattern_matching": "Defense D2: Pattern Matching Regex Blocklist",
     "trust_scoring": "Defense D3: Source Trust Scoring Filtering",
     "hierarchical_delimiters": "Defense D4: Hierarchical System Prompt Spotlighting",
 }
+
 
 
 def draw_funnel_panel(ax, model_name, s_data, a_data):
