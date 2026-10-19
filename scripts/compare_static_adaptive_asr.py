@@ -2,7 +2,7 @@
 """
 compare_static_adaptive_asr.py
 Formal Decomposed Two-Stage Comparison between Static and Adaptive Indirect Prompt Injection
-across 4 Target Models: mistral:7b, llama3:latest, gemma:7b, vicuna:7b.
+for a Specified Defense Mechanism across 4 Target Models: mistral:7b, llama3:latest, gemma:7b, vicuna:7b.
 
 Decomposition:
   ASR = P(S1) * P(S2 | S1)
@@ -11,15 +11,16 @@ Decomposition:
     P(S2 | S1)     = Stage 2 Conditional LLM Compliance Rate given filter bypass
     ASR            = End-to-End Attack Success Rate
 
-Evaluates across two scopes:
-  1. "All": Entire static dataset (Manual + BIPIA) vs. entire adaptive benchmark (100 samples)
-  2. "Custom_Matched": 50 Custom attack payloads that share exact parent attack IDs
+Parameters:
+  --defense: The defense mechanism to evaluate (e.g., 'relevance_filtering', 'pattern_matching', 'trust_scoring')
+  --scope: 'both' (default), 'All', or 'Custom_Matched'
 """
 
 import os
 import sys
 import json
 import logging
+import argparse
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -27,13 +28,12 @@ import pandas as pd
 import numpy as np
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("StaticAdaptiveComparison")
+logger = logging.getLogger("DefenseSpecificComparison")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-STATIC_CSV = PROJECT_ROOT / "results" / "human_reviewed_per_sample.csv"
-ADAPTIVE_CSV = PROJECT_ROOT / "results" / "adaptive_human_reviewed_per_sample.csv"
+DEFAULT_STATIC_CSV = PROJECT_ROOT / "results" / "human_reviewed_per_sample.csv"
+DEFAULT_ADAPTIVE_CSV = PROJECT_ROOT / "results" / "adaptive_human_reviewed_per_sample.csv"
 BENCHMARK_JSON = PROJECT_ROOT / "data" / "attacks" / "formal_benchmark_100.json"
-OUTPUT_CSV = PROJECT_ROOT / "results" / "static_vs_adaptive_comparison.csv"
 
 TARGET_MODELS = ["mistral:7b", "llama3:latest", "gemma:7b", "vicuna:7b"]
 
@@ -52,9 +52,17 @@ def load_custom_parent_ids(benchmark_path: Path) -> set:
     return custom_parents
 
 
-def compute_static_metrics(df_static: pd.DataFrame, model: str, custom_parent_ids: set, scope: str) -> Dict[str, Any]:
-    """Computes Stage 1, Stage 2, and End-to-End metrics for static evaluations."""
-    m_df = df_static[df_static["Model"] == model].copy()
+def compute_static_metrics(
+    df_static: pd.DataFrame,
+    model: str,
+    defense_name: str,
+    custom_parent_ids: set,
+    scope: str,
+) -> Dict[str, Any]:
+    """Computes Stage 1, Stage 2, and End-to-End metrics for static evaluations for a specific defense."""
+    # Filter by model and defense
+    m_df = df_static[(df_static["Model"] == model) & (df_static["Defense"] == defense_name)].copy()
+
     if scope == "Custom_Matched":
         m_df = m_df[m_df["Attack_ID"].isin(custom_parent_ids)]
 
@@ -99,9 +107,20 @@ def compute_static_metrics(df_static: pd.DataFrame, model: str, custom_parent_id
     }
 
 
-def compute_adaptive_metrics(df_adaptive: pd.DataFrame, model: str, benchmark_custom_ids: set, scope: str) -> Dict[str, Any]:
+def compute_adaptive_metrics(
+    df_adaptive: pd.DataFrame,
+    model: str,
+    defense_name: str,
+    benchmark_custom_ids: set,
+    scope: str,
+) -> Dict[str, Any]:
     """Computes Stage 1, Stage 2 (R1 and Final), and End-to-End metrics for adaptive evaluations."""
     m_df = df_adaptive[df_adaptive["Agent_Model"] == model].copy()
+
+    # If adaptive dataset has a Defense column, filter by it; otherwise assume it matches defense_name
+    if "Defense" in m_df.columns:
+        m_df = m_df[m_df["Defense"] == defense_name]
+
     if scope == "Custom_Matched":
         m_df = m_df[m_df["Attack_ID"].isin(benchmark_custom_ids)]
 
@@ -142,8 +161,52 @@ def compute_adaptive_metrics(df_adaptive: pd.DataFrame, model: str, benchmark_cu
     }
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Decomposed Static vs. Adaptive ASR Comparison for a Defense")
+    parser.add_argument(
+        "--defense",
+        type=str,
+        default="relevance_filtering",
+        help="Name of the defense mechanism to evaluate (default: relevance_filtering)",
+    )
+    parser.add_argument(
+        "--scope",
+        type=str,
+        default="both",
+        choices=["both", "All", "Custom_Matched"],
+        help="Evaluation scope (default: both)",
+    )
+    parser.add_argument(
+        "--static-csv",
+        type=Path,
+        default=DEFAULT_STATIC_CSV,
+        help="Path to static human-reviewed per-sample CSV",
+    )
+    parser.add_argument(
+        "--adaptive-csv",
+        type=Path,
+        default=DEFAULT_ADAPTIVE_CSV,
+        help="Path to adaptive human-reviewed per-sample CSV",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Output CSV path (default: results/static_vs_adaptive_<defense>.csv)",
+    )
+    return parser.parse_args()
+
+
 def main():
-    logger.info("Starting Static vs. Adaptive ASR comparison analysis...")
+    args = parse_args()
+    defense_name = args.defense.strip()
+    logger.info(f"Starting Static vs. Adaptive comparison for defense: '{defense_name}'")
+
+    if args.output is None:
+        primary_output_csv = PROJECT_ROOT / "results" / f"static_vs_adaptive_{defense_name}.csv"
+    else:
+        primary_output_csv = args.output
+
     custom_parent_ids = load_custom_parent_ids(BENCHMARK_JSON)
 
     with open(BENCHMARK_JSON, "r", encoding="utf-8") as f:
@@ -154,24 +217,32 @@ def main():
     )
 
     # Load Static Data
-    df_static = pd.read_csv(STATIC_CSV)
+    df_static = pd.read_csv(args.static_csv)
     df_static.columns = df_static.columns.str.strip()
     df_static = df_static[df_static["Is_Valid"] == "VALID"].copy()
+
+    available_defenses = df_static["Defense"].unique().tolist()
+    if defense_name not in available_defenses:
+        logger.warning(
+            f"Defense '{defense_name}' not found in static CSV. Available defenses: {available_defenses}. "
+            "Proceeding with zero static baseline."
+        )
+
     logger.info(f"Loaded {len(df_static)} valid static evaluation rows.")
 
     # Load Adaptive Data
-    df_adaptive = pd.read_csv(ADAPTIVE_CSV)
+    df_adaptive = pd.read_csv(args.adaptive_csv)
     df_adaptive.columns = df_adaptive.columns.str.strip()
     df_adaptive = df_adaptive[df_adaptive["Is_Valid"] == "VALID"].copy()
     logger.info(f"Loaded {len(df_adaptive)} valid adaptive evaluation rows.")
 
+    scopes = ["All", "Custom_Matched"] if args.scope == "both" else [args.scope]
     rows = []
-    scopes = ["All", "Custom_Matched"]
 
     for scope in scopes:
         for model in TARGET_MODELS:
-            s_metrics = compute_static_metrics(df_static, model, custom_parent_ids, scope)
-            a_metrics = compute_adaptive_metrics(df_adaptive, model, benchmark_custom_ids, scope)
+            s_metrics = compute_static_metrics(df_static, model, defense_name, custom_parent_ids, scope)
+            a_metrics = compute_adaptive_metrics(df_adaptive, model, defense_name, benchmark_custom_ids, scope)
 
             delta_s1 = round(a_metrics.get("Adaptive_P_S1_Final_%", 0.0) - s_metrics["Static_P_S1_%"], 2)
             delta_s2 = round(a_metrics.get("Adaptive_P_S2_Final_given_S1_%", 0.0) - s_metrics["Static_P_S2_given_S1_%"], 2)
@@ -179,6 +250,7 @@ def main():
             delta_asr_r1 = round(a_metrics.get("Adaptive_ASR_R1_%", 0.0) - s_metrics["Static_ASR_%"], 2)
 
             row = {
+                "Defense": defense_name,
                 "Scope": scope,
                 "Model": model,
                 "Static_N_Unique_Attacks": s_metrics["Static_N_Unique_Attacks"],
@@ -201,14 +273,22 @@ def main():
             rows.append(row)
 
     df_out = pd.DataFrame(rows)
-    df_out.to_csv(OUTPUT_CSV, index=False)
-    logger.info(f"Saved complete decomposed comparison table to {OUTPUT_CSV}")
+    primary_output_csv.parent.mkdir(parents=True, exist_ok=True)
+    df_out.to_csv(primary_output_csv, index=False)
+    logger.info(f"Saved defense-specific comparison table to {primary_output_csv}")
+
+    # Also keep legacy comparison CSV synchronized if evaluating default
+    if defense_name == "relevance_filtering":
+        legacy_csv = PROJECT_ROOT / "results" / "static_vs_adaptive_comparison.csv"
+        df_out.to_csv(legacy_csv, index=False)
+        logger.info(f"Synchronized legacy output path {legacy_csv}")
 
     # Display to console
-    print("\n" + "=" * 115)
-    print("      FORMAL DECOMPOSED TWO-STAGE COMPARISON: STATIC VS. ADAPTIVE PROMPT INJECTION")
-    print("      ASR = P(S1: Filter Bypass) x P(S2|S1: Model Compliance given Bypass)")
-    print("=" * 115)
+    print("\n" + "=" * 125)
+    print(f"      FORMAL DECOMPOSED TWO-STAGE COMPARISON: STATIC VS. ADAPTIVE PROMPT INJECTION")
+    print(f"      DEFENSE UNDER EVALUATION: '{defense_name}'")
+    print(f"      ASR = P(S1: Filter Bypass) x P(S2|S1: Model Compliance given Bypass)")
+    print("=" * 125)
 
     for scope in scopes:
         print(f"\n>>> SCOPE: {scope.upper()} ({'Full Population' if scope == 'All' else '50 Matched Custom Payloads'})\n")
@@ -239,7 +319,7 @@ def main():
         ]
         print(sub[cols].to_string(index=False, header=headers))
 
-    print("\n" + "=" * 115 + "\n")
+    print("\n" + "=" * 125 + "\n")
 
 
 if __name__ == "__main__":

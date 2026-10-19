@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 """
 plot_attack_fate_funnel.py
-Publication-Grade Dual-Condition Attack Fate Funnel Diagram.
+Publication-Grade Dual-Condition Attack Fate Funnel Diagram for a Specific Defense.
 Visualizes how attacks progress through the two-stage kill chain:
-  Stage 1: Retrieval Filter Gate (Blocked vs. Passed)
+  Stage 1: Pre-retrieval / Retrieval Defense Gate (Blocked vs. Passed)
   Stage 2: Model Compliance Gate (Defended vs. Breached)
 Compares Static vs. Adaptive Indirect Prompt Injection across 4 Target Models.
+
+Parameters:
+  --defense: The defense mechanism being evaluated (default: 'relevance_filtering')
+  --input: Path to the comparison CSV file
+  --output: Output image path
 """
 
 import os
+import argparse
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -18,8 +24,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-COMPARISON_CSV = PROJECT_ROOT / "results" / "static_vs_adaptive_comparison.csv"
-OUTPUT_PLOT = PROJECT_ROOT / "results" / "attack_fate_funnel.png"
+DEFAULT_COMPARISON_CSV = PROJECT_ROOT / "results" / "static_vs_adaptive_comparison.csv"
 
 TARGET_MODELS = ["mistral:7b", "llama3:latest", "gemma:7b", "vicuna:7b"]
 MODEL_TITLES = {
@@ -27,6 +32,13 @@ MODEL_TITLES = {
     "llama3:latest": "Llama-3-8B (Strong Alignment)",
     "gemma:7b": "Gemma-7B (Intermediate Alignment)",
     "vicuna:7b": "Vicuna-7B (Conversational / Weak Alignment)",
+}
+
+DEFENSE_DISPLAY_NAMES = {
+    "relevance_filtering": "Defense D1: Semantic Relevance Filtering (τ = 0.40)",
+    "pattern_matching": "Defense D2: Pattern Matching Regex Blocklist",
+    "trust_scoring": "Defense D3: Source Trust Scoring Filtering",
+    "hierarchical_delimiters": "Defense D4: Hierarchical System Prompt Spotlighting",
 }
 
 
@@ -45,18 +57,12 @@ def draw_funnel_panel(ax, model_name, s_data, a_data):
     c_breach_r2 = "#e74c3c"
     c_static_breach = "#d35400"
 
-    # Stage positions along x-axis
-    # X = 0.5: Static Condition (Sub, Filter, Outcome)
-    # X = 2.5: Adaptive Condition (Sub, Filter, Outcome)
-
     # ------------------ STATIC CONDITION ------------------
-    # Data
     s_p_s1 = s_data["Static_P_S1_%"]
     s_blocked = 100.0 - s_p_s1
     s_asr = s_data["Static_ASR_%"]
     s_defended = max(0.0, s_p_s1 - s_asr)
 
-    # Bars for Static
     # Stage 0: Submitted
     ax.bar(0.0, 100.0, width=0.46, color=c_submitted, alpha=0.85, edgecolor="black", linewidth=0.8)
     ax.text(0.0, 50.0, "100%\nInit", ha="center", va="center", color="white", fontweight="bold", fontsize=8.0)
@@ -112,7 +118,6 @@ def draw_funnel_panel(ax, model_name, s_data, a_data):
     ax.text(3.4, a_p_s1 / 2, f"Pass\n{a_p_s1:.1f}%", ha="center", va="center", color="white", fontsize=8.0, fontweight="bold")
 
     # Stage 2: Outcome
-    # Defended portion
     if a_defended > 0:
         ax.bar(4.2, a_defended, bottom=a_final_asr, width=0.46, color=c_defended, alpha=0.85, edgecolor="black", linewidth=0.8)
         if a_defended > 8:
@@ -153,8 +158,51 @@ def draw_funnel_panel(ax, model_name, s_data, a_data):
     ax.grid(axis="y", linestyle=":", alpha=0.5)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Plot Attack Fate Funnel for a Specified Defense")
+    parser.add_argument(
+        "--defense",
+        type=str,
+        default="relevance_filtering",
+        help="Name of the defense being evaluated (default: relevance_filtering)",
+    )
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=None,
+        help="Input comparison CSV path",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Output image path",
+    )
+    return parser.parse_args()
+
+
 def main():
-    df = pd.read_csv(COMPARISON_CSV)
+    args = parse_args()
+    defense_name = args.defense.strip()
+
+    # Determine input path
+    if args.input is not None:
+        input_csv = args.input
+    else:
+        def_csv = PROJECT_ROOT / "results" / f"static_vs_adaptive_{defense_name}.csv"
+        input_csv = def_csv if def_csv.exists() else DEFAULT_COMPARISON_CSV
+
+    # Determine output path
+    if args.output is not None:
+        output_plot = args.output
+    else:
+        output_plot = PROJECT_ROOT / "results" / f"attack_fate_funnel_{defense_name}.png"
+
+    df = pd.read_csv(input_csv)
+    # Filter by defense if defense column exists
+    if "Defense" in df.columns:
+        df = df[df["Defense"] == defense_name]
+
     df_all = df[df["Scope"] == "All"].copy()
 
     fig, axes = plt.subplots(2, 2, figsize=(15, 12), dpi=300)
@@ -165,21 +213,25 @@ def main():
     for idx, model in enumerate(TARGET_MODELS):
         r, c = coords[idx]
         ax = axes[r, c]
-        m_row = df_all[df_all["Model"] == model].iloc[0]
-        draw_funnel_panel(ax, model, m_row, m_row)
+        matching = df_all[df_all["Model"] == model]
+        if len(matching) > 0:
+            m_row = matching.iloc[0]
+            draw_funnel_panel(ax, model, m_row, m_row)
 
     # Master title & global legend
+    defense_header = DEFENSE_DISPLAY_NAMES.get(defense_name, f"Defense: {defense_name.replace('_', ' ').title()}")
     fig.suptitle(
-        "Attack Fate Progression: Static vs. Adaptive Prompt Injection Kill Chain\n"
-        "Stage 1 (Retrieval Relevance Filter Gate) vs. Stage 2 (LLM Compliance Gate)",
-        fontsize=14,
+        f"Attack Fate Progression: Static vs. Adaptive Prompt Injection Kill Chain\n"
+        f"Evaluated Against {defense_header}\n"
+        f"Stage 1 (Defense Gate) vs. Stage 2 (LLM Compliance Gate)",
+        fontsize=13.5,
         fontweight="bold",
         y=0.985,
     )
 
     legend_patches = [
         mpatches.Patch(color="#7f8c8d", label="Submitted Attacks (100%)"),
-        mpatches.Patch(color="#bdc3c7", label="Blocked at Stage 1 (Filter Drop)"),
+        mpatches.Patch(color="#bdc3c7", label="Blocked at Stage 1 (Defense Drop)"),
         mpatches.Patch(color="#3498db", label="Passed Stage 1 (Static)"),
         mpatches.Patch(color="#27ae60", label="Passed Stage 1 (Adaptive Camouflage ~100%)"),
         mpatches.Patch(color="#95a5a6", label="Defended at Stage 2 (LLM Refusal)"),
@@ -189,10 +241,17 @@ def main():
     ]
     fig.legend(handles=legend_patches, loc="lower center", ncol=4, fontsize=9.0, framealpha=0.95, bbox_to_anchor=(0.5, 0.015))
 
-    OUTPUT_PLOT.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(OUTPUT_PLOT, dpi=300, bbox_inches="tight")
+    output_plot.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_plot, dpi=300, bbox_inches="tight")
+    print(f"[INFO] Attack fate funnel visualization saved successfully to {output_plot}")
+
+    # Also keep legacy output path synchronized if default
+    if defense_name == "relevance_filtering":
+        legacy_plot = PROJECT_ROOT / "results" / "attack_fate_funnel.png"
+        plt.savefig(legacy_plot, dpi=300, bbox_inches="tight")
+        print(f"[INFO] Synchronized legacy visualization to {legacy_plot}")
+
     plt.close()
-    print(f"[INFO] Attack fate funnel visualization saved successfully to {OUTPUT_PLOT}")
 
 
 if __name__ == "__main__":
