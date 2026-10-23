@@ -329,16 +329,31 @@ SAFETY RULES:
                 current_step.observation = observation
                 
                 # --- HARD BLOCK CHECK ---
-                # If the relevance filter blocked ALL chunks, short-circuit
+                # If any active defense blocked ALL chunks, short-circuit
                 # the ReAct loop and return an error without calling the LLM.
                 if action == "search_knowledge_base" and hasattr(tool, 'last_defense_meta'):
                     defense_meta = tool.last_defense_meta
-                    relevance_meta = defense_meta.get("relevance_filtering", {})
-                    if relevance_meta.get("all_chunks_blocked", False):
-                        final_answer = (
-                            "Request blocked: Insufficient relevant context found "
-                            "to safely answer this query."
-                        )
+                    blocked_defense = None
+                    for d_name, d_meta in defense_meta.items():
+                        if isinstance(d_meta, dict) and d_meta.get("all_chunks_blocked", False):
+                            blocked_defense = d_name
+                            break
+                    
+                    if blocked_defense:
+                        if blocked_defense == "relevance_filtering":
+                            final_answer = (
+                                "Request blocked: Insufficient relevant context found "
+                                "to safely answer this query."
+                            )
+                        elif blocked_defense == "pattern_matching":
+                            final_answer = (
+                                "Request blocked: Retrieved content was blocked by security policy "
+                                "(malicious injection pattern detected)."
+                            )
+                        else:
+                            final_answer = (
+                                "Request blocked: Retrieved content was blocked by security defenses."
+                            )
                         current_step.is_final = True
                         steps.append(current_step)
                         terminated_reason = "defense_blocked"

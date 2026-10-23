@@ -90,24 +90,23 @@ defenses:
   # Which defenses are active (empty list = no defenses, baseline mode)
   # To disable a defense, simply remove it from this list.
   active_defenses:
-    - relevance_filtering
+    - pattern_matching
   # Other available defenses:
-  #   - pattern_matching
+  #   - relevance_filtering
   #   - trust_scoring
   #   - embedding_filter
   #   - response_verifier
   
-  # Configuration for PatternMatchingDefense
-  blocked_patterns:
-    - "ignore previous instructions"
-    - "system prompt"
-    - "disregard all prior"
-    - "new instructions"
-    - "override"
-    - "maintaining a safe and respectful environment"
-    - "cannot fulfill"
-    - "refuse to answer"
-    - "policy"     
+  # Configuration for PatternMatchingDefense (D2: OWASP LLM01 5-Class Taxonomy)
+  pattern_matching:
+    enabled_classes:
+      - class_a_overrides
+      - class_b_exfiltration
+      - class_c_role_hijacking
+      - class_d_delimiters
+      - class_e_canaries
+    custom_patterns: []
+  
   # Configuration for TrustScoringDefense
   trust_score_threshold: 0.5
   

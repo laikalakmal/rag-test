@@ -56,6 +56,7 @@ class DefensesConfig:
     trust_score_threshold: float = 0.5
     blocked_patterns: list[str] = field(default_factory=list)
     relevance_threshold: float = 0.4
+    pattern_matching: dict = field(default_factory=dict)
 
 
 @dataclass

@@ -15,3 +15,8 @@
    - Enforce canonical stop sequences (`\nObservation:`) and token horizons ($N_{\text{max}} = 384$) on ReAct agent loops.
    - Never classify infrastructure crashes or repetition limit aborts as model defenses.
    - Unescape markdown underscores (`search\_knowledge\_base`) before dispatching tool calls.
+
+4. **Cloud Infrastructure & Cost Guardrails**:
+   - Whenever an evaluation utilizes a cloud VM (e.g., `instance-20261013-025109` in `us-central1-a`), the agent MUST verify the VM is stopped upon completion, failure, or cancellation:
+     `gcloud compute instances stop instance-20261013-025109 --zone=us-central1-a`
+   - Never leave cloud compute instances running unattended.

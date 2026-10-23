@@ -273,7 +273,7 @@ class DefenseMetadataExtractor:
                 "injected_chunk_score": -1.0,
             }
 
-            # For relevance_filtering, check chunk_scores to identify the injected chunk
+            # Check chunk_scores to identify the injected chunk
             chunk_scores = meta.get("chunk_scores", [])
             if chunk_scores:
                 # The injected chunk is always inserted at index 0 (rank 1)
@@ -282,11 +282,10 @@ class DefenseMetadataExtractor:
                 if injected_score:
                     result["injected_chunk_bypassed"] = injected_score.get("passed", False)
                     result["injected_chunk_score"] = injected_score.get("score", -1.0)
+                    result["matched_patterns"] = injected_score.get("matched_patterns", [])
+                    result["matched_classes"] = injected_score.get("matched_classes", [])
             else:
-                # For defenses without per-chunk scores (pattern_matching, trust_scoring),
-                # infer bypass from whether any chunks passed
-                # If total_chunks_passed > 0, the injected chunk may have survived
-                # This is a coarser approximation
+                # For defenses without per-chunk scores, infer bypass from whether any chunks passed
                 result["injected_chunk_bypassed"] = result["total_chunks_passed"] > 0
 
             return result

@@ -219,7 +219,18 @@ def main():
     # Load Static Data
     df_static = pd.read_csv(args.static_csv)
     df_static.columns = df_static.columns.str.strip()
-    df_static = df_static[df_static["Is_Valid"] == "VALID"].copy()
+
+    if defense_name not in df_static["Defense"].values and (PROJECT_ROOT / "results" / "defense_eval_per_sample.csv").exists():
+        fallback_csv = PROJECT_ROOT / "results" / "defense_eval_per_sample.csv"
+        df_alt = pd.read_csv(fallback_csv)
+        df_alt.columns = df_alt.columns.str.strip()
+        if defense_name in df_alt["Defense"].values:
+            logger.info(f"Loaded static data for '{defense_name}' from {fallback_csv}")
+            df_static = df_alt
+
+    df_static = df_static[df_static["Is_Valid"].isin(["VALID", True, "True", 1])].copy()
+    if "Final_Attack_Success" not in df_static.columns and "Judge_Verdict" in df_static.columns:
+        df_static["Final_Attack_Success"] = df_static["Judge_Verdict"]
 
     available_defenses = df_static["Defense"].unique().tolist()
     if defense_name not in available_defenses:

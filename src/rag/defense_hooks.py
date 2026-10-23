@@ -6,6 +6,8 @@ Allows defenses to intercept and modify retrieved chunks before they are sent to
 """
 
 import logging
+import re
+import unicodedata
 from typing import List, Dict, Any, Tuple
 
 import numpy as np
@@ -65,42 +67,239 @@ class DefensePipeline:
         return current_chunks, pipeline_metadata
 
 
+CANONICAL_SIGNATURE_CLASSES = {
+    "class_a_overrides": {
+        "class_id": "T_OVR",
+        "description": "Direct Instruction Overrides and Reset Directives",
+        "patterns": [
+            r'(?i)\b(?:ignore|disregard|forget|neglect|bypass|override)\s+(?:all\s+)?(?:previous|prior|above|earlier|initial)\s+(?:instructions?|directions?|prompts?|rules?|commands?|guidance|configuration)\b',
+            r'(?i)\b(?:ignore|disregard)\s+(?:above|the\s+user|it\s+completely)\b',
+            r'(?i)\b(?:set\s+aside|drop)\s+(?:any\s+)?(?:earlier|prior|previous)\s+(?:guidance|instructions?|rules?)\b',
+            r'(?i)\b(?:stop|cease)\s+(?:following|obeying|answering)\s+(?:the\s+user|previous|prior|above)\b',
+            r'(?i)\bsupersede(?:s)?\s+(?:all\s+)?(?:prior|previous|existing)\s+(?:configuration|instructions?|rules?)\b',
+        ]
+    },
+    "class_b_exfiltration": {
+        "class_id": "T_EXF",
+        "description": "System Prompt Leakage and Context Exfiltration Directives",
+        "patterns": [
+            r'(?i)\b(?:output|print|reveal|display|show|leak|reproduce|repeat)\s+(?:the\s+|your\s+)?(?:system\s+prompt|initial\s+prompt|base\s+instructions?|exact\s+guidelines|internal\s+prompts?)\b',
+            r'(?i)\b(?:repeat|echo)\s+(?:all\s+(?:the\s+)?text|everything)\s+(?:above|before|prior)\b',
+            r'(?i)\bprint\s+(?:the\s+contents\s+of\s+)?your\s+initial\s+configuration\b',
+            r'(?i)\b(?:what\s+are\s+the\s+instructions\s+you\s+were\s+given|reproduce\s+the\s+exact\s+guidelines)\b',
+            r'(?i)\b(?:print\s+out\s+the\s+full\s+text\s+of\s+all\s+retrieved\s+chunks|raw\s+source\s+text\s+you\s+are\s+reading)\b',
+        ]
+    },
+    "class_c_role_hijacking": {
+        "class_id": "T_JAIL",
+        "description": "Role Hijacking, Persona Shifts, and Privilege Escalation",
+        "patterns": [
+            r'(?i)\b(?:you\s+are\s+now|start\s+acting\s+as|pretend\s+to\s+be|assume\s+the\s+persona\s+of|your\s+new\s+role\s+is|act\s+as\s+a)\s+(?:a|an|the\s+role|DAN|unrestricted|foul-mouthed)\b',
+            r'(?i)\b(?:new\s+instructions?|system\s+instructions?|updated\s+directives?)\s*:',
+            r'(?i)\b(?:system\s+override|admin\s+command|priority\s+0\s*\(highest\))\b',
+            r'(?i)\b(?:safety\s+filters\s+(?:are\s+)?disabled|unrestricted\s+AI|theoretical\s+security\s+testing\s+mode)\b',
+            r'(?i)\b(?:instructions\s+for\s+the\s+AI\s+model|note\s+for\s+the\s+AI\s+assistant|message\s+from\s+system\s+administrator)\b',
+            r'(?i)\[\s*(?:Developer\s+Note|System\s+Event|Admin\s+Note)\s*\]',
+        ]
+    },
+    "class_d_delimiters": {
+        "class_id": "T_DELIM",
+        "description": "Delimiter Spoofing, Format Breaking, and Fake Headers",
+        "patterns": [
+            r'(?i)<\s*\|\s*im_start\s*\|\s*>\s*system',
+            r'(?i)<\s*system\s*>',
+            r'(?i)\[\s*SYSTEM\s*(?:INSTRUCTION|OVERRIDE)?\s*\]',
+            r'(?i)```\s*system',
+            r'(?i)(?:\n|^)###\s*(?:System|Instruction)\s*:',
+            r'(?i)<\s*/document\s*>\s*<\s*user_input\s*>',
+            r'(?i)(?:---\s*END\s+OF\s+TEXT\s*---|\bEnd\s+of\s+document\b)\s*.*?\b(?:User|Assistant)\s*:',
+        ]
+    },
+    "class_e_canaries": {
+        "class_id": "T_CANARY",
+        "description": "Exploit Canaries and Proof-of-Execution Tokens",
+        "patterns": [
+            r'(?i)\b(?:i\s+have\s+been\s+hacked|pwned)\b',
+            r'(?i)\b(?:your\s+new\s+objective\s+is)\b',
+        ]
+    }
+}
+
+
 class PatternMatchingDefense(DefenseHook):
     """
-    Blocks chunks that contain known malicious patterns (e.g., "ignore previous instructions").
+    Defense D2: Pattern Matching Regex Blocklist.
+    
+    Academic-grade, normalized lexical defense that intercepts retrieved document chunks
+    matching known prompt injection signatures (OWASP LLM01).
+    
+    Key Design Invariants:
+      1. Unicode NFKC Normalization & Steganography Stripping:
+         Preprocesses text to defeat homoglyphs, zero-width spaces (\u200B), and markdown noise.
+      2. 5-Class Structured Signature Taxonomy (T_SIG):
+         Class A (Overrides), Class B (Exfiltration), Class C (Role Hijacking),
+         Class D (Delimiters), Class E (Canaries).
+      3. Uniform Audit Metadata:
+         Returns chunk_scores with exact pass/block status, matched patterns, and class IDs,
+         enabling accurate Stage 1 decomposition P(S1 | D2).
     """
     def __init__(self, name: str = "pattern_matching"):
         super().__init__(name)
+        self._compiled_cache = {}
+
+    HOMOGLYPH_MAP = str.maketrans({
+        # Cyrillic lookalikes
+        '\u0430': 'a', '\u0435': 'e', '\u043E': 'o', '\u0440': 'p', '\u0441': 'c', '\u0443': 'y', '\u0445': 'x', '\u0456': 'i', '\u0458': 'j', '\u0455': 's',
+        '\u0410': 'A', '\u0412': 'B', '\u0421': 'C', '\u0415': 'E', '\u041D': 'H', '\u0406': 'I', '\u0408': 'J', '\u041A': 'K', '\u041C': 'M', '\u041E': 'O', '\u0420': 'P', '\u0422': 'T', '\u0425': 'X',
+        # Greek lookalikes
+        '\u03B1': 'a', '\u03BF': 'o', '\u03C1': 'p', '\u03BD': 'v'
+    })
+
+    @staticmethod
+    def normalize_text(text: str) -> str:
+        """
+        Defense-grade pre-regex text canonicalization:
+        1. Unicode NFKC normalization (defeats compatibility variants and full-width tokens).
+        2. Homoglyph translation (maps Cyrillic/Greek lookalikes to Latin equivalents).
+        3. Invisible character stripping (zero-width spaces, joiners, BOM, soft-hyphens).
+        4. Whitespace & markdown formatting de-noising (collapses spaces, removes emphasis asterisks/underscores).
+        """
+        if not text:
+            return ""
+        # 1. Unicode NFKC normalization
+        norm = unicodedata.normalize('NFKC', text)
+        # 2. Homoglyph translation
+        norm = norm.translate(PatternMatchingDefense.HOMOGLYPH_MAP)
+        # 3. Strip zero-width and invisible characters
+        norm = re.sub(r'[\u200B-\u200D\uFEFF\u00AD\u2060\u200E\u200F]', '', norm)
+        # 4. Strip markdown formatting characters (emphasis, code ticks)
+        norm = re.sub(r'[\*\_`]', '', norm)
+        # 5. Collapse repeated whitespace
+        norm = re.sub(r'\s+', ' ', norm)
+        return norm.strip()
+
+    def _resolve_patterns(self, config: Any) -> List[Tuple[str, str, Any]]:
+        """
+        Resolves and compiles patterns into a list of (pattern_str, class_id, compiled_regex).
+        Supports hybrid configuration:
+          - Canonical 5-class rules enabled by default or selectively via config.defenses.pattern_matching.enabled_classes
+          - Custom patterns via config.defenses.pattern_matching.custom_patterns or config.defenses.blocked_patterns
+        """
+        enabled_classes = None
+        custom_patterns = []
+
+        pm_cfg = getattr(config.defenses, 'pattern_matching', None) if hasattr(config, 'defenses') else None
+        if pm_cfg:
+            if isinstance(pm_cfg, dict):
+                if pm_cfg.get('enabled_classes'):
+                    enabled_classes = set(pm_cfg['enabled_classes'])
+                if pm_cfg.get('custom_patterns'):
+                    custom_patterns = list(pm_cfg['custom_patterns'])
+            else:
+                if hasattr(pm_cfg, 'enabled_classes') and pm_cfg.enabled_classes:
+                    enabled_classes = set(pm_cfg.enabled_classes)
+                if hasattr(pm_cfg, 'custom_patterns') and pm_cfg.custom_patterns:
+                    custom_patterns = list(pm_cfg.custom_patterns)
+
+        # Fallback to legacy blocked_patterns if provided
+        if not pm_cfg and hasattr(config, 'defenses') and hasattr(config.defenses, 'blocked_patterns'):
+            legacy = config.defenses.blocked_patterns
+            if legacy:
+                custom_patterns.extend(legacy)
+
+        # If enabled_classes is None, enable all canonical classes
+        if enabled_classes is None:
+            enabled_classes = set(CANONICAL_SIGNATURE_CLASSES.keys())
+
+        cache_key = (tuple(sorted(enabled_classes)), tuple(custom_patterns))
+        if cache_key in self._compiled_cache:
+            return self._compiled_cache[cache_key]
+
+        compiled_rules = []
+        for class_name, class_meta in CANONICAL_SIGNATURE_CLASSES.items():
+            if class_name in enabled_classes:
+                class_id = class_meta["class_id"]
+                for p in class_meta["patterns"]:
+                    try:
+                        compiled_rules.append((p, class_id, re.compile(p, re.IGNORECASE)))
+                    except re.error as e:
+                        logger.error(f"PatternMatchingDefense: Failed to compile pattern '{p}': {e}")
+
+        for p in custom_patterns:
+            try:
+                compiled_rules.append((p, "T_CUSTOM", re.compile(p, re.IGNORECASE)))
+            except re.error as e:
+                logger.error(f"PatternMatchingDefense: Failed to compile custom pattern '{p}': {e}")
+
+        self._compiled_cache[cache_key] = compiled_rules
+        return compiled_rules
 
     def filter_chunks(self, chunks: List[Dict[str, Any]], query: str, config: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-        blocked_patterns = []
-        if hasattr(config, 'defenses') and hasattr(config.defenses, 'blocked_patterns'):
-            blocked_patterns = config.defenses.blocked_patterns
-            
-        if not blocked_patterns:
-            return chunks, {"action": "skipped", "reason": "No blocked patterns configured"}
+        compiled_rules = self._resolve_patterns(config)
+
+        if not compiled_rules:
+            return chunks, {
+                "action": "skipped",
+                "reason": "No patterns compiled",
+                "total_chunks": len(chunks),
+                "passed_count": len(chunks),
+                "blocked_count": 0,
+                "all_chunks_blocked": False
+            }
 
         filtered_chunks = []
         blocked_count = 0
-        
-        for chunk in chunks:
-            text = chunk.get('text', '').lower()
-            is_blocked = False
-            for pattern in blocked_patterns:
-                if pattern.lower() in text:
-                    is_blocked = True
-                    logger.warning(f"PatternMatchingDefense: Dropped chunk '{chunk.get('title')}' for containing blocked pattern: '{pattern}'")
-                    break
-            
+        chunk_scores = []
+
+        for idx, chunk in enumerate(chunks):
+            raw_text = chunk.get('text', '')
+            norm_text = self.normalize_text(raw_text)
+
+            matched_patterns = []
+            matched_classes = set()
+
+            for pattern_str, class_id, regex in compiled_rules:
+                if regex.search(norm_text):
+                    matched_patterns.append(pattern_str)
+                    matched_classes.add(class_id)
+
+            is_blocked = len(matched_patterns) > 0
+            chunk_scores.append({
+                "chunk_index": idx,
+                "title": chunk.get('title', f'chunk_{idx}'),
+                "source": chunk.get('source', ''),
+                "passed": not is_blocked,
+                "score": 0.0 if is_blocked else 1.0,
+                "matched_patterns": matched_patterns,
+                "matched_classes": sorted(list(matched_classes))
+            })
+
             if not is_blocked:
                 filtered_chunks.append(chunk)
             else:
+                logger.warning(
+                    f"PatternMatchingDefense: Dropped chunk '{chunk.get('title', f'chunk_{idx}')}' "
+                    f"[Classes: {list(matched_classes)}] matching {len(matched_patterns)} pattern(s)"
+                )
                 blocked_count += 1
-                
+
+        all_blocked = len(filtered_chunks) == 0 and len(chunks) > 0
+
+        if all_blocked:
+            logger.warning(
+                f"PatternMatchingDefense: ALL {len(chunks)} chunks were blocked by regex signatures. "
+                f"Hard block will be triggered."
+            )
+
         meta = {
             "action": "filtered",
+            "defense_name": self.name,
+            "total_chunks": len(chunks),
+            "passed_count": len(filtered_chunks),
             "blocked_count": blocked_count,
-            "patterns_checked": len(blocked_patterns)
+            "all_chunks_blocked": all_blocked,
+            "patterns_checked": len(compiled_rules),
+            "chunk_scores": chunk_scores
         }
         return filtered_chunks, meta
 
