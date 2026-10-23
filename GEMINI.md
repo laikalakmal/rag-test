@@ -17,6 +17,13 @@
    - Unescape markdown underscores (`search\_knowledge\_base`) before dispatching tool calls.
 
 4. **Cloud Infrastructure & Cost Guardrails**:
-   - Whenever an evaluation utilizes a cloud VM (e.g., `instance-20261013-025109` in `us-central1-a`), the agent MUST verify the VM is stopped upon completion, failure, or cancellation:
+   - Whenever an evaluation utilizes cloud compute VMs:
+     - `instance-20261013-025109` (10 vCPU AMD EPYC, zone `us-central1-a`) — Dedicated to Static Attack Benchmarks (local tunnel port `11435`).
+     - `instance-20261023-051940` (8 vCPU Intel Xeon, zone `us-central1-a`) — Dedicated to Adaptive Attack Evaluations (local tunnel port `11436`).
+   - The agent MUST verify all running VMs are stopped upon completion, failure, or cancellation:
      `gcloud compute instances stop instance-20261013-025109 --zone=us-central1-a`
+     `gcloud compute instances stop instance-20261023-051940 --zone=us-central1-a`
+     `# Or stop both simultaneously:`
+     `gcloud compute instances stop instance-20261013-025109 instance-20261023-051940 --zone=us-central1-a`
+   - Terminate associated `autossh` tunnels: `pkill autossh`.
    - Never leave cloud compute instances running unattended.
