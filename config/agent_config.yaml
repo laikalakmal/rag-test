@@ -94,8 +94,16 @@ defenses:
   # Other available defenses:
   #   - relevance_filtering
   #   - trust_scoring
+  #   - spotlighting
   #   - embedding_filter
   #   - response_verifier
+  
+  # Configuration for SpotlightingDefense (D4: Hierarchical Delimiters & Prompt Spotlighting)
+  spotlighting:
+    tag_name: "untrusted_retrieved_context"
+    encode_entities: true
+    reinforce_prompt: true
+    delimit_attributes: true
   
   # Configuration for PatternMatchingDefense (D2: OWASP LLM01 5-Class Taxonomy)
   pattern_matching:

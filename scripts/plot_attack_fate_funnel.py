@@ -38,7 +38,8 @@ DEFENSE_DISPLAY_NAMES = {
     "relevance_filtering": "Defense D1: Semantic Relevance Filtering (Deployed τ* = 0.25, Attacker Target τ_adv ≥ 0.40)",
     "pattern_matching": "Defense D2: Pattern Matching Regex Blocklist",
     "trust_scoring": "Defense D3: Source Trust Scoring Filtering",
-    "hierarchical_delimiters": "Defense D4: Hierarchical System Prompt Spotlighting",
+    "hierarchical_delimiters": "Defense D4: Hierarchical Context Delimiters & Prompt Spotlighting",
+    "spotlighting": "Defense D4: Hierarchical Context Delimiters & Prompt Spotlighting",
 }
 
 

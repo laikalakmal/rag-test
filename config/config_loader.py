@@ -57,6 +57,12 @@ class DefensesConfig:
     blocked_patterns: list[str] = field(default_factory=list)
     relevance_threshold: float = 0.4
     pattern_matching: dict = field(default_factory=dict)
+    spotlighting: dict = field(default_factory=lambda: {
+        "tag_name": "untrusted_retrieved_context",
+        "encode_entities": True,
+        "reinforce_prompt": True,
+        "delimit_attributes": True,
+    })
 
 
 @dataclass

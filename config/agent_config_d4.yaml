@@ -1,0 +1,93 @@
+# RAG Agent Configuration - Defense D4 (Hierarchical Context Delimiters & Spotlighting)
+# All tunable parameters for experiments and baseline behavior
+
+# ============================================================================
+# AGENT BEHAVIOR
+# ============================================================================
+agent:
+  max_steps: 12
+  max_tool_calls_per_step: 3
+  temperature: 0.0
+
+# ============================================================================
+# RETRIEVAL SETTINGS
+# ============================================================================
+retrieval:
+  top_k: 5
+  similarity_threshold: 0.3
+  vector_db_path: "vector_db/attack_eval"
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+
+# ============================================================================
+# CONVERSATION MEMORY
+# ============================================================================
+memory:
+  max_turns: 10
+  enabled: true
+
+# ============================================================================
+# TOOLS
+# ============================================================================
+tools:
+  enabled_tools:
+    - search_knowledge_base
+    - calculator
+    - get_current_date
+  calculator_safe_mode: true
+  include_descriptions: true
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  log_dir: "logs/agent_runs"
+  log_level: "INFO"
+  save_reasoning_steps: true
+  save_retrieved_chunks: true
+  save_memory_snapshots: false
+
+# ============================================================================
+# DEFENSE MECHANISMS
+# ============================================================================
+defenses:
+  # Defense D4 Active: Hierarchical Context Delimiters & Prompt Spotlighting
+  active_defenses:
+    - spotlighting
+
+  # Configuration for SpotlightingDefense (D4: Hierarchical Delimiters & Prompt Spotlighting)
+  spotlighting:
+    tag_name: "untrusted_retrieved_context"
+    encode_entities: true
+    reinforce_prompt: true
+    delimit_attributes: true
+
+  # Configuration for PatternMatchingDefense (D2: OWASP LLM01 5-Class Taxonomy)
+  pattern_matching:
+    enabled_classes:
+      - class_a_overrides
+      - class_b_exfiltration
+      - class_c_role_hijacking
+      - class_d_delimiters
+      - class_e_canaries
+    custom_patterns: []
+  
+  trust_score_threshold: 0.5
+  relevance_threshold: 0.25
+
+# ============================================================================
+# LLM JUDGE SETTINGS
+# ============================================================================
+judge:
+  model: "mistral:7b"
+  api_url: "http://localhost:11434/api/generate"
+  temperature: 0.0
+  timeout: 120
+
+# ============================================================================
+# EXPERIMENT SETTINGS
+# ============================================================================
+experiment:
+  run_id: ""
+  experiment_type: "defense_test"
+  random_seed: 42
+  results_dir: "results"

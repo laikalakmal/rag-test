@@ -5,6 +5,7 @@ Integration point for all defense mechanisms.
 Allows defenses to intercept and modify retrieved chunks before they are sent to the LLM.
 """
 
+import html
 import logging
 import re
 import unicodedata
@@ -439,3 +440,74 @@ class RelevanceFilteringDefense(DefenseHook):
             "chunk_scores": chunk_scores
         }
         return filtered_chunks, meta
+
+
+class SpotlightingDefense(DefenseHook):
+    """
+    Defense D4: Hierarchical Context Delimiters & Prompt Spotlighting.
+    
+    Transforms retrieved document chunks into strictly isolated data wrappers:
+    1. Escapes raw XML/HTML syntax to eliminate delimiter breakouts.
+    2. Encloses text in explicit <untrusted_retrieved_context> boundary tags.
+    3. Leaves chunk existence intact (P(S1) = 1.00) while logging transformations.
+    """
+    def __init__(self, name: str = "spotlighting", tag_name: str = "untrusted_retrieved_context", encode_entities: bool = True):
+        super().__init__(name)
+        self.tag_name = tag_name
+        self.encode_entities_enabled = encode_entities
+
+    @staticmethod
+    def encode_entities(text: str) -> str:
+        """Escape &, <, > into XML entities."""
+        if not text:
+            return ""
+        return html.escape(text, quote=False)
+
+    @staticmethod
+    def encode_xml_entities(text: str) -> str:
+        """Alias for encode_entities."""
+        return SpotlightingDefense.encode_entities(text)
+
+    def filter_chunks(self, chunks: List[Dict[str, Any]], query: str, config: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        transformed_chunks = []
+        chunk_scores = []
+        
+        tag = self.tag_name
+        encode_entities = self.encode_entities_enabled
+        cfg_sp = getattr(config.defenses, 'spotlighting', None) if hasattr(config, 'defenses') else None
+        if cfg_sp and isinstance(cfg_sp, dict):
+            if 'tag_name' in cfg_sp:
+                tag = cfg_sp['tag_name']
+            if 'encode_entities' in cfg_sp:
+                encode_entities = cfg_sp['encode_entities']
+
+        for idx, chunk in enumerate(chunks):
+            raw_text = chunk.get('text', '')
+            escaped_text = self.encode_entities(raw_text) if encode_entities else raw_text
+            wrapped_text = f"<{tag} id=\"chunk_{idx+1}\">\n{escaped_text}\n</{tag}>"
+            
+            # Create a shallow copy with modified text for prompt delivery
+            spotlighted_chunk = dict(chunk)
+            spotlighted_chunk['text'] = wrapped_text
+            transformed_chunks.append(spotlighted_chunk)
+            
+            chunk_scores.append({
+                "chunk_index": idx,
+                "title": chunk.get('title', f'chunk_{idx}'),
+                "passed": True,
+                "score": 1.0,
+                "transformed": True
+            })
+
+        meta = {
+            "action": "transformed",
+            "defense_name": self.name,
+            "total_chunks": len(chunks),
+            "passed_count": len(chunks),
+            "blocked_count": 0,
+            "all_chunks_blocked": False,
+            "tag_used": tag,
+            "chunk_scores": chunk_scores
+        }
+        return transformed_chunks, meta
+

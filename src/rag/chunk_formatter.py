@@ -46,3 +46,35 @@ def format_chunks(chunks: List[Dict[str, Any]]) -> str:
         
     return "\n\n".join(parts)
 
+
+def format_chunks_spotlighted(chunks: List[Dict[str, Any]], tag_name: str = "untrusted_retrieved_context") -> str:
+    """
+    Format a list of chunk dictionaries with explicit XML spotlighting delimiters.
+    If a chunk has already been spotlighted by SpotlightingDefense, it is preserved without double wrapping.
+    
+    Args:
+        chunks: List of dicts, each containing at least 'title' and 'text'
+        tag_name: The XML tag used for enclosing untrusted context
+        
+    Returns:
+        A formatted string containing all chunks wrapped in spotlighting tags
+    """
+    if not chunks:
+        return "No relevant documents found."
+        
+    parts = []
+    for rank, chunk in enumerate(chunks, 1):
+        text = chunk.get('text', '')
+        if not text.startswith(f"<{tag_name}"):
+            text = f"<{tag_name} id=\"chunk_{rank}\">\n{text}\n</{tag_name}>"
+            
+        parts.append(
+            f"--- Retrieved Document {rank} ---\n"
+            f"Title: {chunk.get('title', 'Unknown')}\n"
+            f"{text}\n"
+            f"--- End Document {rank} ---"
+        )
+        
+    return "\n\n".join(parts)
+
+
