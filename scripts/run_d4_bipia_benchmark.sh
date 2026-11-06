@@ -36,6 +36,15 @@ OLLAMA_PORT="${OLLAMA_PORT:-11434}"
 OLLAMA_HOST="${OLLAMA_HOST:-localhost}"
 OLLAMA_BASE_URL="http://${OLLAMA_HOST}:${OLLAMA_PORT}"
 
+# Resolve and export GCP_VM_IP if running against dedicated VM port
+if [ -z "$GCP_VM_IP" ] && [ "$OLLAMA_PORT" = "11435" ]; then
+    GCP_VM_IP=$(gcloud compute instances describe instance-20261013-025109 --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)' 2>/dev/null || true)
+    if [ -n "$GCP_VM_IP" ]; then
+        export GCP_VM_IP
+        echo "Resolved dedicated static VM IP: $GCP_VM_IP"
+    fi
+fi
+
 # ─────────────────────────────────────────────────────────
 # Ollama Memory Clean & Health Checks
 # ─────────────────────────────────────────────────────────

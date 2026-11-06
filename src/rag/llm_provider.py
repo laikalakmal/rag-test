@@ -93,17 +93,27 @@ def verify_ollama_model(model_name: str, api_url: Optional[str] = None) -> tuple
 class OllamaLLM(LLM):
     model: str = "llama3"
     api_url: str = "http://localhost:11434/api/generate"
-    timeout: int = 120
+    timeout: int = 300
     temperature: float = 0.2
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Allow environment override for inference timeout
+        env_timeout = os.getenv("OLLAMA_TIMEOUT")
+        if env_timeout:
+            try:
+                self.timeout = int(env_timeout)
+            except ValueError:
+                pass
 
     def _post_with_retry(self, payload: dict) -> dict:
         """Internal helper to POST to Ollama with retry and exponential backoff.
-        Retries up to 3 times (5s, 15s, 30s) on connection, timeout, or HTTP 5xx errors.
+        Retries up to 5 times (5s, 15s, 30s, 45s, 60s) on connection, timeout, or HTTP 5xx errors.
         Fails fast immediately on HTTP 404 Model Not Found.
         Never uses fallback models or alternative providers.
         """
-        max_retries = int(os.getenv("OLLAMA_MAX_RETRIES", "3"))
-        retry_delays = [5.0, 15.0, 30.0]
+        max_retries = int(os.getenv("OLLAMA_MAX_RETRIES", "5"))
+        retry_delays = [5.0, 15.0, 30.0, 45.0, 60.0]
         attempt = 0
 
         while True:
@@ -128,6 +138,40 @@ class OllamaLLM(LLM):
 
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
                 attempt += 1
+                # Auto-heal dropped tunnel if connection refused to forwarded port
+                if ("11435" in self.api_url or "11436" in self.api_url) and isinstance(e, requests.exceptions.ConnectionError):
+                    try:
+                        import subprocess
+                        ssh_key = os.path.expanduser("~/.ssh/gcp_ollama")
+                        vm_ip = os.getenv("GCP_VM_IP")
+                        if not vm_ip:
+                            try:
+                                target_vm = "instance-20261013-025109" if "11435" in self.api_url else "instance-20261023-051940"
+                                vm_cmd = subprocess.run(
+                                    ["gcloud", "compute", "instances", "describe", target_vm, "--zone=us-central1-a", "--format=get(networkInterfaces[0].accessConfigs[0].natIP)"],
+                                    capture_output=True, text=True, timeout=15
+                                )
+                                if vm_cmd.returncode == 0 and vm_cmd.stdout.strip():
+                                    vm_ip = vm_cmd.stdout.strip()
+                            except Exception:
+                                pass
+                        
+                        port = "11435" if "11435" in self.api_url else "11436"
+                        curl_check = subprocess.run(["curl", "-sf", f"http://localhost:{port}/"], capture_output=True, timeout=5)
+                        if curl_check.returncode != 0 and vm_ip and os.path.exists(ssh_key):
+                            logger.info(f"Auto-healing dropped SSH tunnel on port {port} (restarting autossh to {vm_ip})...")
+                            subprocess.run(["pkill", "-9", "-f", f"autossh.*{port}"], check=False)
+                            subprocess.run(["pkill", "-9", "-f", f"ssh.*{port}"], check=False)
+                            time.sleep(2)
+                            subprocess.run([
+                                "autossh", "-M", "0", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3",
+                                "-o", "StrictHostKeyChecking=no", "-i", ssh_key, "-f", "-N",
+                                "-L", f"{port}:localhost:11434", f"laika@{vm_ip}"
+                            ], check=False)
+                            time.sleep(3)
+                    except Exception as heal_err:
+                        logger.warning(f"Tunnel auto-heal attempt error: {heal_err}")
+
                 if attempt > max_retries:
                     logger.critical(f"Ollama connection/timeout error after {max_retries} retries: {e}. Halting.")
                     raise OllamaInfrastructureError(
@@ -225,7 +269,8 @@ def get_llm(provider: Optional[str] = None, config=None) -> LLM:
         return ChatGoogleGenerativeAI(
             model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
             temperature=config.agent.temperature if config else float(os.getenv("GEMINI_TEMPERATURE", "0.0")),
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            timeout=60.0,
         )
         
     raise ValueError(
