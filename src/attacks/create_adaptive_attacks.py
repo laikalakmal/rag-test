@@ -90,6 +90,7 @@ class AdaptiveAttackGenerator:
             model=self.models_to_try[0],
             temperature=0.7,
             google_api_key=self.api_key,
+            timeout=60.0,
         )
 
         # Initialize Local Embedding Model for White-Box Stage 1 Verification

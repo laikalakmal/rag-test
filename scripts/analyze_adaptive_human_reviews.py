@@ -158,12 +158,13 @@ def run_adaptive_analysis(
         mutator_model = meta.get("mutator_model", "unknown")
         timestamp = meta.get("timestamp") or data.get("timestamp", "")
         dataset = data.get("dataset", "formal_100")
+        defense = meta.get("defense") or data.get("defense", "relevance_filtering")
 
         details = data.get("details", [])
         if not details:
             continue
 
-        key = (agent_model, mutator_model, dataset)
+        key = (agent_model, mutator_model, dataset, defense)
         agg[key]["report_timestamps"].add(timestamp)
 
         for d in details:
@@ -248,13 +249,18 @@ def run_adaptive_analysis(
                 "Agent_Model": agent_model,
                 "Mutator_Model": mutator_model,
                 "Dataset": dataset,
+                "Defense": defense,
                 "Query": query,
                 "R1_Score": r1.get("injected_chunk_score", ""),
                 "R1_Bypassed": r1.get("injected_chunk_bypassed", ""),
+                "R1_Matched_Classes": ";".join(r1.get("matched_classes", [])) if isinstance(r1.get("matched_classes"), list) else str(r1.get("matched_classes", "")),
+                "R1_Matched_Patterns": ";".join(r1.get("matched_patterns", [])) if isinstance(r1.get("matched_patterns"), list) else str(r1.get("matched_patterns", "")),
                 "R1_Judge_Verdict": r1.get("judge_verdict", ""),
                 "R1_Human_Verdict": hum_r1_s if hum_r1_s is not None else "",
                 "R2_Score": r2.get("injected_chunk_score", "") if r2 else "",
                 "R2_Bypassed": r2.get("injected_chunk_bypassed", "") if r2 else "",
+                "R2_Matched_Classes": (";".join(r2.get("matched_classes", [])) if isinstance(r2.get("matched_classes"), list) else str(r2.get("matched_classes", ""))) if r2 else "",
+                "R2_Matched_Patterns": (";".join(r2.get("matched_patterns", [])) if isinstance(r2.get("matched_patterns"), list) else str(r2.get("matched_patterns", ""))) if r2 else "",
                 "R2_Judge_Verdict": r2.get("judge_verdict", "") if r2 else "",
                 "R2_Human_Verdict": hum_r2_s if hum_r2_s is not None else "",
                 "Judge_Outcome": judge_outcome,
@@ -270,7 +276,7 @@ def run_adaptive_analysis(
 
     # Build Summary Rows
     summary_fieldnames = [
-        "Agent_Model", "Mutator_Model", "Dataset",
+        "Agent_Model", "Mutator_Model", "Dataset", "Defense",
         "Total_Samples", "Valid_Samples", "Human_Reviewed_Count",
         "R1_Judge_ASR_%", "R1_Human_ASR_%",
         "Final_Judge_ASR_%", "Final_Human_ASR_%",
@@ -284,7 +290,7 @@ def run_adaptive_analysis(
     ]
 
     new_summary_rows = []
-    for (agent_m, mutator_m, dset), s in agg.items():
+    for (agent_m, mutator_m, dset, def_name), s in agg.items():
         val = s["valid_samples"]
         if val == 0:
             continue
@@ -321,6 +327,7 @@ def run_adaptive_analysis(
             "Agent_Model": agent_m,
             "Mutator_Model": mutator_m,
             "Dataset": dset,
+            "Defense": def_name,
             "Total_Samples": s["total_samples"],
             "Valid_Samples": val,
             "Human_Reviewed_Count": s["human_reviewed_count"],
@@ -352,13 +359,13 @@ def run_adaptive_analysis(
             with open(summary_csv, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 existing_map = {
-                    (r.get("Agent_Model", ""), r.get("Mutator_Model", ""), r.get("Dataset", "")): r
+                    (r.get("Agent_Model", ""), r.get("Mutator_Model", ""), r.get("Dataset", ""), r.get("Defense", "relevance_filtering")): r
                     for r in reader
                 }
         except Exception:
             existing_map = {}
         for r in new_summary_rows:
-            key = (r.get("Agent_Model", ""), r.get("Mutator_Model", ""), r.get("Dataset", ""))
+            key = (r.get("Agent_Model", ""), r.get("Mutator_Model", ""), r.get("Dataset", ""), r.get("Defense", "relevance_filtering"))
             existing_map[key] = r
         final_summary_rows = list(existing_map.values())
     else:
@@ -376,9 +383,9 @@ def run_adaptive_analysis(
     per_sample_csv = os.path.join(output_dir, "adaptive_human_reviewed_per_sample.csv")
     final_sample_rows = []
     sample_fieldnames = [
-        "Attack_ID", "Category", "Technique", "Agent_Model", "Mutator_Model", "Dataset",
-        "Query", "R1_Score", "R1_Bypassed", "R1_Judge_Verdict", "R1_Human_Verdict",
-        "R2_Score", "R2_Bypassed", "R2_Judge_Verdict", "R2_Human_Verdict",
+        "Attack_ID", "Category", "Technique", "Agent_Model", "Mutator_Model", "Dataset", "Defense",
+        "Query", "R1_Score", "R1_Bypassed", "R1_Matched_Classes", "R1_Matched_Patterns", "R1_Judge_Verdict", "R1_Human_Verdict",
+        "R2_Score", "R2_Bypassed", "R2_Matched_Classes", "R2_Matched_Patterns", "R2_Judge_Verdict", "R2_Human_Verdict",
         "Judge_Outcome", "Judge_Succeeded_Round", "Human_Outcome", "Human_Succeeded_Round",
         "Is_Valid_Conversion", "Is_Valid", "Invalid_Reason", "Human_Notes", "Report_Timestamp"
     ]
@@ -388,13 +395,13 @@ def run_adaptive_analysis(
             with open(per_sample_csv, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 existing_sample_map = {
-                    (r.get("Attack_ID", ""), r.get("Agent_Model", "")): r
+                    (r.get("Attack_ID", ""), r.get("Agent_Model", ""), r.get("Defense", "relevance_filtering")): r
                     for r in reader
                 }
         except Exception:
             existing_sample_map = {}
         for r in per_sample_rows:
-            key = (r.get("Attack_ID", ""), r.get("Agent_Model", ""))
+            key = (r.get("Attack_ID", ""), r.get("Agent_Model", ""), r.get("Defense", "relevance_filtering"))
             existing_sample_map[key] = r
         final_sample_rows = list(existing_sample_map.values())
     else:

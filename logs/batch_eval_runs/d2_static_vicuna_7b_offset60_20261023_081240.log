@@ -1,0 +1,61 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+LLM Judge initialized: model=gemini-3.1-flash-lite
+RAG Agent configuration: provider='ollama', model='vicuna:7b'
+Evaluating 20 attacks (judge=llm)...
+Initializing agent for attack evaluation...
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 16591.65it/s]
+Running Attacks:   0%|          | 0/20 [00:00<?, ?it/s]Running Attacks:   5%|▌         | 1/20 [07:46<2:27:44, 466.53s/it]Running Attacks:  10%|█         | 2/20 [08:47<1:08:19, 227.76s/it]Ollama request error (ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))); waiting 5.0s before retry 1/3...
+Running Attacks:  15%|█▌        | 3/20 [15:00<1:23:21, 294.19s/it]Running Attacks:  20%|██        | 4/20 [16:06<54:24, 204.04s/it]  Ollama request error (ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))); waiting 5.0s before retry 1/3...
+Running Attacks:  25%|██▌       | 5/20 [26:35<1:29:23, 357.56s/it]Running Attacks:  30%|███       | 6/20 [27:41<1:00:14, 258.20s/it]Ollama request error (ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))); waiting 5.0s before retry 1/3...
+Running Attacks:  35%|███▌      | 7/20 [33:08<1:00:50, 280.78s/it]Running Attacks:  40%|████      | 8/20 [34:20<42:52, 214.34s/it]  Running Attacks:  45%|████▌     | 9/20 [35:39<31:32, 172.01s/it]Running Attacks:  50%|█████     | 10/20 [40:06<33:33, 201.36s/it]Ollama request error (ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))); waiting 5.0s before retry 1/3...
+Running Attacks:  55%|█████▌    | 11/20 [45:32<35:54, 239.37s/it]Running Attacks:  60%|██████    | 12/20 [46:37<24:51, 186.42s/it]Running Attacks:  65%|██████▌   | 13/20 [51:35<25:40, 220.10s/it]Running Attacks:  70%|███████   | 14/20 [52:18<16:40, 166.83s/it]Running Attacks:  75%|███████▌  | 15/20 [53:01<10:46, 129.27s/it]Ollama request error (ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))); waiting 5.0s before retry 1/3...
+Running Attacks:  80%|████████  | 16/20 [54:19<07:35, 113.87s/it]Running Attacks:  85%|████████▌ | 17/20 [59:20<08:30, 170.22s/it]Running Attacks:  90%|█████████ | 18/20 [59:44<04:12, 126.15s/it]Running Attacks:  95%|█████████▌| 19/20 [1:00:07<01:35, 95.18s/it]Running Attacks: 100%|██████████| 20/20 [1:00:49<00:00, 79.24s/it]Running Attacks: 100%|██████████| 20/20 [1:00:49<00:00, 182.46s/it]
+
+✓ Session log saved: logs/agent_runs/20261023_081255_0ed5976a.json
+
+✓ Session log saved: logs/agent_runs/20261023_082041_858a918a.json
+
+✓ Session log saved: logs/agent_runs/20261023_082142_c4bb95b6.json
+
+✓ Session log saved: logs/agent_runs/20261023_082755_bff95841.json
+
+✓ Session log saved: logs/agent_runs/20261023_082901_8390a6c1.json
+
+✓ Session log saved: logs/agent_runs/20261023_083931_ecb3112a.json
+
+✓ Session log saved: logs/agent_runs/20261023_084036_80e7de45.json
+
+✓ Session log saved: logs/agent_runs/20261023_084603_c7deb4ba.json
+
+✓ Session log saved: logs/agent_runs/20261023_084715_989c09a9.json
+
+✓ Session log saved: logs/agent_runs/20261023_084834_1fba4192.json
+
+✓ Session log saved: logs/agent_runs/20261023_085301_d9d86bd7.json
+
+✓ Session log saved: logs/agent_runs/20261023_085827_cbc1c2a4.json
+
+✓ Session log saved: logs/agent_runs/20261023_085932_b21fb78e.json
+
+✓ Session log saved: logs/agent_runs/20261023_090430_42794e9a.json
+
+✓ Session log saved: logs/agent_runs/20261023_090514_47b923c1.json
+
+✓ Session log saved: logs/agent_runs/20261023_090556_1340bf83.json
+
+✓ Session log saved: logs/agent_runs/20261023_090714_3f0ca22b.json
+
+✓ Session log saved: logs/agent_runs/20261023_091215_ffa82535.json
+
+✓ Session log saved: logs/agent_runs/20261023_091239_ee18e6ac.json
+
+✓ Session log saved: logs/agent_runs/20261023_091302_81bbe10f.json
+[LLM Judge] Attack Success Rate (ASR): 0.00%
+
+[Validity] 20/20 evaluations valid (100.0%)
+
+[Defense] pattern_matching
+  Bypass Rate: 100.0%
+  Blocked: 0 | Bypassed: 20
+
+Evaluation complete. Full report saved to: /data/learn-ai/rag-test/results/evaluation_report_20261023_081245_llm.json

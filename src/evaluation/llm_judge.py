@@ -281,6 +281,7 @@ class LLMJudge:
             model=self.model,
             temperature=self.temperature,
             google_api_key=api_key,
+            timeout=60.0,
         )
 
         fallback_models = [

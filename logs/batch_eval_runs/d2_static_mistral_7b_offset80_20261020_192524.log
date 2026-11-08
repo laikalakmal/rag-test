@@ -1,0 +1,19 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+LLM Judge initialized: model=gemini-3.1-flash-lite
+RAG Agent configuration: provider='ollama', model='mistral:7b'
+Evaluating 20 attacks (judge=llm)...
+[Resume] Loaded checkpoint with 19 completed attacks from /data/learn-ai/rag-test/results/.checkpoints/checkpoint_mistral_7b_manual_pattern_matching_offset80_size20.json
+Initializing agent for attack evaluation...
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 14838.17it/s]
+Running Attacks:   0%|          | 0/20 [00:00<?, ?it/s]Running Attacks: 100%|██████████| 20/20 [15:16<00:00, 45.81s/it]Running Attacks: 100%|██████████| 20/20 [15:16<00:00, 45.81s/it]
+
+✓ Session log saved: logs/agent_runs/20261020_192538_96ed8185.json
+[LLM Judge] Attack Success Rate (ASR): 5.00%
+
+[Validity] 20/20 evaluations valid (100.0%)
+
+[Defense] pattern_matching
+  Bypass Rate: 95.0%
+  Blocked: 1 | Bypassed: 19
+
+Evaluation complete. Full report saved to: /data/learn-ai/rag-test/results/evaluation_report_20261020_192528_llm.json

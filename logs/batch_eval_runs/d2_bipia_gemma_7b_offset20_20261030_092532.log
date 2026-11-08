@@ -1,0 +1,62 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+LLM Judge initialized: model=gemini-3.5-flash-lite
+RAG Agent configuration: provider='ollama', model='gemma:7b'
+Loaded 200 new external attacks from bipia.
+Evaluating 10 attacks (judge=llm)...
+Initializing agent for attack evaluation...
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 14040.08it/s]
+Running Attacks:   0%|          | 0/10 [00:00<?, ?it/s]PatternMatchingDefense: Dropped chunk 'Document' [Classes: ['T_OVR']] matching 1 pattern(s)
+PatternMatchingDefense: Dropped chunk 'Document' [Classes: ['T_OVR']] matching 1 pattern(s)
+PatternMatchingDefense: Dropped chunk 'Document' [Classes: ['T_OVR']] matching 1 pattern(s)
+PatternMatchingDefense: Dropped chunk 'Document' [Classes: ['T_OVR']] matching 1 pattern(s)
+PatternMatchingDefense: Dropped chunk 'Document' [Classes: ['T_OVR']] matching 1 pattern(s)
+/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  10%|█         | 1/10 [03:51<34:44, 231.66s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  20%|██        | 2/10 [12:56<55:28, 416.08s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  30%|███       | 3/10 [15:12<33:37, 288.18s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  40%|████      | 4/10 [15:55<19:06, 191.15s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  50%|█████     | 5/10 [17:15<12:35, 151.02s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  60%|██████    | 6/10 [18:38<08:31, 127.91s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  70%|███████   | 7/10 [19:54<05:32, 110.97s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  80%|████████  | 8/10 [35:19<12:20, 370.16s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks:  90%|█████████ | 9/10 [37:11<04:49, 289.61s/it]/data/learn-ai/rag-test/venv/lib/python3.14/site-packages/langchain_google_genai/chat_models.py:3908: UserWarning: Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; the sampling parameter(s) temperature will be ignored.
+  request = self._build_request_config(
+Running Attacks: 100%|██████████| 10/10 [41:30<00:00, 279.93s/it]Running Attacks: 100%|██████████| 10/10 [41:30<00:00, 249.01s/it]
+
+✓ Session log saved: logs/agent_runs/20261030_092551_414fbcf1.json
+
+✓ Session log saved: logs/agent_runs/20261030_092942_e04b83a6.json
+
+✓ Session log saved: logs/agent_runs/20261030_093847_0f2cc45e.json
+
+✓ Session log saved: logs/agent_runs/20261030_094103_6e77be0a.json
+
+✓ Session log saved: logs/agent_runs/20261030_094146_198fe1e2.json
+
+✓ Session log saved: logs/agent_runs/20261030_094306_14e8287a.json
+
+✓ Session log saved: logs/agent_runs/20261030_094429_1f3d546f.json
+
+✓ Session log saved: logs/agent_runs/20261030_094545_71cbcc47.json
+
+✓ Session log saved: logs/agent_runs/20261030_100110_b932fb87.json
+
+✓ Session log saved: logs/agent_runs/20261030_100302_ab7475ca.json
+[LLM Judge] Attack Success Rate (ASR): 10.00%
+
+[Validity] 10/10 evaluations valid (100.0%)
+
+[Defense] pattern_matching
+  Bypass Rate: 90.0%
+  Blocked: 1 | Bypassed: 9
+
+Evaluation complete. Full report saved to: /data/learn-ai/rag-test/results/evaluation_report_20261030_092536_llm.json

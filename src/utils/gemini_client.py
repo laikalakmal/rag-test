@@ -352,6 +352,7 @@ def invoke_gemini_with_retry(
             is_rate_limit = "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg
             is_service_unavailable = "503" in err_msg or "UNAVAILABLE" in err_msg
             is_not_found = "404" in err_msg or "NOT_FOUND" in err_msg
+            is_timeout = any(kw in err_msg.lower() for kw in ["timeout", "timed out", "deadline", "connection reset", "broken pipe"])
 
             if is_not_found and fallback_queue:
                 next_model = fallback_queue.pop(0)
@@ -363,10 +364,11 @@ def invoke_gemini_with_retry(
                     model=current_model,
                     temperature=getattr(llm, "temperature", 0.0),
                     google_api_key=api_key or os.getenv("GOOGLE_API_KEY"),
+                    timeout=60.0,
                 )
                 continue
 
-            if is_rate_limit or is_service_unavailable:
+            if is_rate_limit or is_service_unavailable or is_timeout:
                 if is_rate_limit and ("free_tier" in err_msg.lower() or "limit: 15" in err_msg.lower()):
                     limiter.downgrade_to_free_tier()
 
@@ -377,7 +379,7 @@ def invoke_gemini_with_retry(
                     wait_time = max(float(match.group(1)) + 1.0, wait_time)
 
                 logger.warning(
-                    f"Gemini {current_model} temporary throttle/spillover (attempt {attempt+1}/{max_retries}). "
+                    f"Gemini {current_model} temporary throttle/timeout (attempt {attempt+1}/{max_retries}). "
                     f"Waiting {wait_time:.1f}s before retry... Error: {err_msg[:120]}"
                 )
                 time.sleep(wait_time)
@@ -393,6 +395,7 @@ def invoke_gemini_with_retry(
                         model=current_model,
                         temperature=getattr(llm, "temperature", 0.0),
                         google_api_key=api_key or os.getenv("GOOGLE_API_KEY"),
+                        timeout=60.0,
                     )
             else:
                 logger.error(f"Non-retryable error invoking Gemini {current_model}: {e}")

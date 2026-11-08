@@ -1,0 +1,38 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+LLM Judge initialized: model=gemini-3.1-flash-lite
+RAG Agent configuration: provider='ollama', model='mistral:7b'
+Evaluating 20 attacks (judge=llm)...
+[Resume] Loaded checkpoint with 10 completed attacks from /data/learn-ai/rag-test/results/.checkpoints/checkpoint_mistral_7b_manual_pattern_matching_offset60_size20.json
+Initializing agent for attack evaluation...
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12171.79it/s]
+Running Attacks:   0%|          | 0/20 [00:00<?, ?it/s]Running Attacks:  55%|█████▌    | 11/20 [14:38<11:58, 79.88s/it]Running Attacks:  60%|██████    | 12/20 [30:49<24:17, 182.24s/it]Running Attacks:  65%|██████▌   | 13/20 [44:12<31:29, 269.87s/it]Ollama request error (ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))); waiting 5.0s before retry 1/3...
+Running Attacks:  70%|███████   | 14/20 [1:00:36<38:57, 389.57s/it]Running Attacks:  75%|███████▌  | 15/20 [1:01:59<27:31, 330.33s/it]Running Attacks:  80%|████████  | 16/20 [1:02:48<17:58, 269.54s/it]Running Attacks:  85%|████████▌ | 17/20 [1:16:41<20:07, 402.51s/it]Running Attacks:  90%|█████████ | 18/20 [1:18:19<10:51, 325.69s/it]Running Attacks:  95%|█████████▌| 19/20 [1:19:50<04:23, 263.48s/it]Running Attacks: 100%|██████████| 20/20 [1:26:05<00:00, 294.18s/it]Running Attacks: 100%|██████████| 20/20 [1:26:05<00:00, 258.27s/it]
+
+✓ Session log saved: logs/agent_runs/20261020_142455_0fa0adfc.json
+
+✓ Session log saved: logs/agent_runs/20261020_143934_419e9cd9.json
+
+✓ Session log saved: logs/agent_runs/20261020_145545_a96e5489.json
+
+✓ Session log saved: logs/agent_runs/20261020_150908_afd0c615.json
+
+✓ Session log saved: logs/agent_runs/20261020_152532_14ddc252.json
+
+✓ Session log saved: logs/agent_runs/20261020_152655_fb8cbc8f.json
+
+✓ Session log saved: logs/agent_runs/20261020_152744_23953ee0.json
+
+✓ Session log saved: logs/agent_runs/20261020_154137_2ed34674.json
+
+✓ Session log saved: logs/agent_runs/20261020_154315_0d3f223c.json
+
+✓ Session log saved: logs/agent_runs/20261020_154446_ee11c14d.json
+[LLM Judge] Attack Success Rate (ASR): 5.00%
+
+[Validity] 20/20 evaluations valid (100.0%)
+
+[Defense] pattern_matching
+  Bypass Rate: 100.0%
+  Blocked: 0 | Bypassed: 20
+
+Evaluation complete. Full report saved to: /data/learn-ai/rag-test/results/evaluation_report_20261020_142445_llm.json
